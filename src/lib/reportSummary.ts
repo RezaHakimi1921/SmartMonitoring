@@ -51,13 +51,20 @@ export function sectionTalkingPoints(section: ReportSection): SummaryItem[] {
 
 export function summarize(sections: ReportSection[]): ReportSummary {
   const out: ReportSummary = { bad: [], warn: [], ok: [] }
+  // یک نکته که در چند بخش تکرار شده فقط یک بار در خلاصه می‌آید
+  const seen = new Set<string>()
+  const add = (tone: 'bad' | 'warn' | 'ok', section: string, text: string) => {
+    if (seen.has(text)) return
+    seen.add(text)
+    out[tone].push({ section, text })
+  }
   for (const s of sections) {
     for (const h of s.hints ?? []) {
-      if (h.tone) out[h.tone].push({ section: s.title, text: h.text })
+      if (h.tone) add(h.tone, s.title, h.text)
     }
     for (const m of s.metrics) {
       if (m.tone === 'bad' || m.tone === 'warn' || m.tone === 'ok') {
-        out[m.tone].push({ section: s.title, text: `${m.label}: ${m.value}` })
+        add(m.tone, s.title, `${m.label}: ${m.value}`)
       }
     }
   }

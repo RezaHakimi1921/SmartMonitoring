@@ -44,8 +44,8 @@ export function AppShell() {
         <div className="nav-brand">
           <div className="nav-mark">SX</div>
           <div>
-            <p className="nav-title">Monitoring</p>
-            <p className="nav-tag">باشگاه مشتریان</p>
+            <p className="nav-title">SmartX Monitoring</p>
+            <p className="nav-tag">پنل کنترل کیفیت</p>
           </div>
         </div>
         {NAV.map((item) => (

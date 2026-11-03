@@ -166,6 +166,9 @@ export function ReportPage() {
 
   useEffect(() => {
     topRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    document
+      .querySelector('.journey-chip.active')
+      ?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
   }, [step])
 
   const message = useMemo(
@@ -324,7 +327,7 @@ export function ReportPage() {
             aria-expanded={editing}
             onClick={() => setEditing((v) => !v)}
           >
-            {editing ? 'بستن تنظیمات' : 'تغییر مجموعه، بازه یا بخش‌ها'}
+            {editing ? 'بستن تنظیمات' : 'تغییر مجموعه یا بازه'}
           </button>
           <button
             type="button"

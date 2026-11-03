@@ -48,7 +48,7 @@ export function HomePage() {
             </div>
             <p className="muted">{type.description}</p>
             <div className="card-footer">
-              <span className="chip">انتخاب و ادامه ←</span>
+              <span className="chip">شروع این بررسی ←</span>
             </div>
           </Link>
         ))}

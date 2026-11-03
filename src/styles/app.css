@@ -1848,3 +1848,137 @@ summary:focus-visible,
   line-height: 1.9;
   color: var(--on-surface-variant);
 }
+
+/* ===== اصلاحات بازبینی طراحی ===== */
+:root {
+  --tap: 44px;
+  --bottom-nav-h: 72px;
+}
+.btn,
+.period-chip,
+.journey-chip {
+  min-height: var(--tap);
+}
+.btn:disabled {
+  opacity: 1;
+  background: var(--secondary-container);
+  color: var(--on-surface-variant);
+  box-shadow: none;
+  border-color: transparent;
+}
+.select:focus-visible,
+.input:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+.period-chip:focus-visible,
+.journey-chip:focus-visible,
+.range-field:focus-visible,
+.cal-day:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+.menu-btn {
+  min-width: var(--tap);
+  min-height: var(--tap);
+}
+.period-summary bdi {
+  font-weight: 700;
+}
+.table th {
+  color: var(--on-surface);
+  font-weight: 700;
+}
+.table tr + tr td {
+  border-top: 1px solid var(--outline-variant);
+}
+.journey ol {
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+}
+.journey ol::-webkit-scrollbar {
+  display: none;
+}
+.journey-chip {
+  scroll-snap-align: center;
+}
+.report-notice {
+  font-size: 13px;
+  padding: 8px 12px;
+}
+.sum-count strong {
+  font-size: 32px;
+  font-weight: 800;
+}
+.flow {
+  padding-bottom: 24px;
+}
+
+@media (max-width: 860px) {
+  .main {
+    padding-bottom: calc(var(--bottom-nav-h) + 24px + env(safe-area-inset-bottom));
+  }
+  .flow-submit,
+  .journey-nav {
+    bottom: calc(var(--bottom-nav-h) + 8px);
+  }
+  /* مراحل صفحه اول: یک ردیف فشرده تا کارت‌های اصلی بالاتر بیایند */
+  .home-steps {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .home-steps li {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 8px 4px;
+  }
+  .home-steps li .muted {
+    display: none;
+  }
+}
+@media (max-width: 720px) {
+  .home-steps {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .period-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .period-row .period-chip:last-child {
+    grid-column: 1 / -1;
+  }
+  .report-head .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+  .report-head .actions .btn {
+    min-height: 48px;
+  }
+  /* جدول مدیر: هر ردیف یک کارت */
+  .admin-grid .table thead {
+    display: none;
+  }
+  .admin-grid .table,
+  .admin-grid .table tbody,
+  .admin-grid .table tr,
+  .admin-grid .table td {
+    display: block;
+    width: 100%;
+  }
+  .admin-grid .table tr {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--outline-variant);
+  }
+  .admin-grid .table td {
+    border: 0 !important;
+    padding: 4px 0;
+  }
+  .admin-grid .table .select {
+    width: 100%;
+    min-height: var(--tap);
+  }
+}

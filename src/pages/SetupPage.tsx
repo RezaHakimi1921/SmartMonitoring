@@ -174,7 +174,7 @@ export function SetupPage() {
           />
         ) : null}
         <p className="period-summary">
-          بازه انتخاب‌شده: <strong>{periodLabel(period, fromDate, toDate)}</strong>
+          بازه انتخاب‌شده: <bdi>{periodLabel(period, fromDate, toDate)}</bdi>
         </p>
       </section>
 
