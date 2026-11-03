@@ -1315,3 +1315,436 @@ a {
     padding: var(--space-16);
   }
 }
+
+/* ===== مجموعه انتخاب‌شده (باکس سبز) ===== */
+.brand-selected {
+  min-height: 48px;
+  padding: 6px 8px 6px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--primary);
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand-selected strong {
+  flex: 1;
+}
+.brand-selected-check {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 14px;
+}
+
+/* ===== تقویم شمسی ===== */
+.range-picker {
+  position: relative;
+}
+.range-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-12);
+}
+.range-field {
+  display: grid;
+  gap: 2px;
+  text-align: start;
+  padding: 8px 14px;
+  min-height: 58px;
+  border-radius: 14px;
+  border: 1px solid var(--outline-variant);
+  background: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  font-family: inherit;
+}
+.range-field.active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-soft);
+}
+.range-field-label {
+  font-size: 12px;
+  color: var(--on-surface-variant);
+}
+.range-field-value {
+  font-weight: 700;
+  color: var(--on-surface);
+}
+.range-field-empty {
+  color: var(--outline);
+}
+.cal-pop {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 8px);
+  inset-inline-start: 0;
+  width: min(340px, 100%);
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  background: #fff;
+  border: 1px solid var(--outline-variant);
+  box-shadow: var(--shadow-lift);
+}
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.cal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cal-year {
+  border: 1px solid var(--outline-variant);
+  border-radius: 8px;
+  padding: 4px 6px;
+  font-family: inherit;
+  background: #fff;
+}
+.cal-nav {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--outline-variant);
+  background: #fff;
+  font-size: 20px;
+  cursor: pointer;
+}
+.cal-nav:hover {
+  background: var(--primary-container);
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.cal-weekdays {
+  margin-bottom: 4px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--on-surface-variant);
+}
+.cal-day {
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--on-surface);
+}
+.cal-day:hover:not(:disabled) {
+  background: var(--primary-container);
+}
+.cal-day:disabled {
+  color: var(--outline);
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.cal-day.is-today {
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+.cal-day.in-range {
+  background: var(--primary-container);
+  border-radius: 0;
+}
+.cal-day.is-start,
+.cal-day.is-end {
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 700;
+}
+.cal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+/* ===== صفحه گزارش: سفر مرحله‌ای ===== */
+.report-flow {
+  max-width: 920px;
+}
+.report-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-16);
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.report-head h2 {
+  margin: 4px 0;
+  font-size: 22px;
+}
+.report-head p {
+  margin: 0;
+}
+.edit-panel {
+  gap: var(--space-24);
+}
+.journey ol {
+  list-style: none;
+  margin: 0;
+  padding: 2px 0 8px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+}
+.journey-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--outline-variant);
+  background: rgba(255, 255, 255, 0.85);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.journey-chip.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 700;
+}
+.journey-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--outline);
+}
+.journey-chip.tone-ok .journey-dot {
+  background: var(--success);
+}
+.journey-chip.tone-warn .journey-dot {
+  background: var(--warning);
+}
+.journey-chip.tone-bad .journey-dot {
+  background: var(--error);
+}
+.journey-chip.active .journey-dot {
+  box-shadow: 0 0 0 2px #fff;
+}
+.journey-count {
+  margin: 0;
+  font-size: 12px;
+}
+.journey-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  position: sticky;
+  bottom: 0;
+  padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--surface) 70%, transparent);
+}
+.journey-nav .btn {
+  flex: 1;
+  height: 48px;
+}
+.sum-counts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-12);
+  margin-bottom: var(--space-16);
+}
+.sum-count {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  padding: 12px;
+  border-radius: var(--radius-md);
+}
+.sum-count strong {
+  font-size: 26px;
+}
+.sum-count span {
+  font-size: 13px;
+}
+.sum-count.sum-bad {
+  background: var(--error-container);
+  color: var(--on-error-container);
+}
+.sum-count.sum-warn {
+  background: var(--warning-container);
+  color: var(--on-warning-container);
+}
+.sum-count.sum-ok {
+  background: var(--success-container);
+  color: var(--on-success-container);
+}
+.sum-group {
+  margin-top: var(--space-16);
+}
+.sum-group h4 {
+  margin: 0 0 8px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.sum-group ul,
+.talk-box ul {
+  margin: 0;
+  padding-inline-start: 20px;
+  display: grid;
+  gap: 6px;
+}
+.sum-from {
+  display: inline-block;
+  margin-inline-end: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--secondary-container);
+  font-size: 11px;
+}
+.talk-box {
+  margin-top: var(--space-16);
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--info-container);
+}
+.talk-box h4 {
+  margin: 0 0 8px;
+}
+.send-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-12);
+}
+.message-preview {
+  margin: 0;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-dim);
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.9;
+}
+@media (max-width: 720px) {
+  .send-actions,
+  .range-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== ورق PDF ===== */
+.export-sheet {
+  min-height: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.export-sheet .pdf-block {
+  box-sizing: border-box;
+  width: 794px;
+  padding: 16px 32px;
+  background: #fff;
+}
+.export-sheet .export-block {
+  border: none;
+  border-radius: 0;
+  background: #fff;
+}
+.export-sheet .export-head {
+  margin: 0;
+  padding-top: 28px;
+}
+.export-date {
+  white-space: nowrap;
+}
+.pdf-metrics {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 28px;
+}
+.pdf-metrics li {
+  font-size: 13px !important;
+}
+.pdf-rows {
+  margin-top: 8px !important;
+  padding-top: 8px !important;
+  border-top: 1px solid #e2e8f0 !important;
+}
+.pdf-tone-bad {
+  color: #b91c1c !important;
+}
+.pdf-tone-warn {
+  color: #b45309 !important;
+}
+.pdf-tone-ok {
+  color: #047857 !important;
+}
+.pdf-sum {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+.pdf-sum h3 {
+  margin: 0 0 4px;
+  font-size: 13px;
+}
+.pdf-sum ul {
+  margin: 0;
+  padding-inline-start: 18px !important;
+  list-style: disc !important;
+}
+.pdf-sum li {
+  display: list-item !important;
+  border: none !important;
+  font-size: 12px !important;
+  padding: 2px 0 !important;
+}
+.pdf-sum li span {
+  display: inline-block;
+  margin-inline-end: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  font-size: 10px;
+  color: #334155 !important;
+}
+.pdf-sum-bad {
+  background: #fef2f2;
+}
+.pdf-sum-warn {
+  background: #fffbeb;
+}
+.pdf-sum-ok {
+  background: #ecfdf5;
+}
+.pdf-footer {
+  width: 794px;
+  box-sizing: border-box;
+  padding: 6px 32px;
+  background: #fff;
+  border-top: 1px solid #e2e8f0;
+  font-size: 11px;
+  color: #64748b;
+  text-align: center;
+  direction: rtl;
+}
+
+/* جلوگیری از سرریز افقی صفحه (نوار مراحل اسکرول خودش را دارد) */
+.flow > *,
+.journey,
+.journey ol {
+  min-width: 0;
+}
+.journey {
+  max-width: 100%;
+}

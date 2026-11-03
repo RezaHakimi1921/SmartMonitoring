@@ -39,47 +39,54 @@ export function BrandSearch({ value, onChange }: Props) {
 
   return (
     <div className="brand-search">
-      <label htmlFor="brand-q" className="field-label">
-        نام مجموعه یا شماره قفل
-      </label>
-      <input
-        id="brand-q"
-        className="input"
-        placeholder={loading ? 'در حال آماده‌سازی…' : 'جستجو کنید…'}
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value)
-          setOpen(true)
-        }}
-        onFocus={() => setOpen(true)}
-        autoComplete="off"
-      />
-      {error ? <div className="hint bad">{error}</div> : null}
-
       {value ? (
-        <div className="selected-brand">
-          <div>
+        <>
+          <div className="field-label">مجموعه انتخاب‌شده</div>
+          <div className="brand-selected">
+            <span className="brand-selected-check" aria-hidden="true">
+              ✓
+            </span>
             <strong>
               {value.brandName}
               {value.branchName !== value.brandName
                 ? ` — ${value.branchName}`
                 : ''}
             </strong>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => {
+                onChange(null)
+                setQuery('')
+                setOpen(false)
+              }}
+            >
+              تغییر
+            </button>
           </div>
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={() => {
-              onChange(null)
-              setQuery('')
+        </>
+      ) : (
+        <>
+          <label htmlFor="brand-q" className="field-label">
+            نام مجموعه یا شماره قفل
+          </label>
+          <input
+            id="brand-q"
+            className="input"
+            placeholder={loading ? 'در حال آماده‌سازی…' : 'جستجو کنید…'}
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setOpen(true)
             }}
-          >
-            تغییر
-          </button>
-        </div>
-      ) : null}
+            onFocus={() => setOpen(true)}
+            autoComplete="off"
+          />
+          {error ? <div className="hint bad">{error}</div> : null}
+        </>
+      )}
 
-      {open && query.trim() ? (
+      {!value && open && query.trim() ? (
         <div className="brand-results" role="listbox">
           {results.length === 0 ? (
             <div className="muted" style={{ padding: 12 }}>
@@ -93,11 +100,7 @@ export function BrandSearch({ value, onChange }: Props) {
                 className="brand-result"
                 onClick={() => {
                   onChange(item)
-                  setQuery(
-                    item.branchName !== item.brandName
-                      ? `${item.brandName} — ${item.branchName}`
-                      : item.brandName,
-                  )
+                  setQuery('')
                   setOpen(false)
                 }}
               >

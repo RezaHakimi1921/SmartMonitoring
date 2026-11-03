@@ -1,29 +1,105 @@
-import { useMemo, useRef, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom'
+import { BrandSearch } from '../components/BrandSearch'
 import { ExportSheet } from '../components/ExportSheet'
+import { JalaliRangePicker } from '../components/JalaliRangePicker'
+import { ReportOptions } from '../components/ReportOptions'
 import { DIAG_ITEMS } from '../data/diagCatalog'
 import { buildMockSections } from '../data/mockReport'
-import { periodLabel, type PeriodKey } from '../data/periods'
-import type { FeatureId } from '../data/types'
-import { exportElementAsPdf, exportElementAsPng } from '../lib/exportReport'
-import { formatJalaliLong, toFaDigits, todayJalali } from '../lib/jalali'
-import { loadReviewTypes } from '../lib/storage'
+import {
+  isRangeValid,
+  PERIOD_OPTIONS,
+  periodLabel,
+  type PeriodKey,
+} from '../data/periods'
+import type { BrandBranch, FeatureId, ReportSection } from '../data/types'
+import { exportReportAsPdf } from '../lib/exportReport'
+import {
+  formatJalaliLong,
+  serializeJalali,
+  toFaDigits,
+  todayJalali,
+} from '../lib/jalali'
+import {
+  buildCustomerMessage,
+  sectionTalkingPoints,
+  sectionTone,
+  summarize,
+  TONE_TEXT,
+  type SummaryItem,
+  type Tone,
+} from '../lib/reportSummary'
+import { loadFeatures, loadReviewTypes } from '../lib/storage'
+
+type Step =
+  | { key: 'summary'; title: string }
+  | { key: 'section'; title: string; section: ReportSection; tone: Tone }
+  | { key: 'diag'; title: string }
+  | { key: 'send'; title: string }
+
+function ItemList({
+  title,
+  tone,
+  items,
+}: {
+  title: string
+  tone: 'ok' | 'warn' | 'bad'
+  items: SummaryItem[]
+}) {
+  if (items.length === 0) return null
+  return (
+    <div className={`sum-group sum-${tone}`}>
+      <h4>
+        {title} <span className="chip">{toFaDigits(items.length)}</span>
+      </h4>
+      <ul>
+        {items.map((i, idx) => (
+          <li key={`${i.section}-${idx}`}>
+            <span className="sum-from">{i.section}</span>
+            {i.text}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
 
 export function ReportPage() {
-  const { typeId = '' } = useParams()
-  const [params] = useSearchParams()
+  const { typeId = '', branchId = '' } = useParams()
+  const [params, setParams] = useSearchParams()
+  const navigate = useNavigate()
   const exportRef = useRef<HTMLDivElement>(null)
-  const [busy, setBusy] = useState<'png' | 'pdf' | null>(null)
+  const topRef = useRef<HTMLDivElement>(null)
+  const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState('')
+  const [step, setStep] = useState(0)
+  const [editing, setEditing] = useState(false)
+  const [showOptions, setShowOptions] = useState(false)
 
   const type = loadReviewTypes().find((t) => t.id === typeId)
+  const catalog = loadFeatures()
   const brandName = params.get('brandName') ?? 'مجموعه'
   const branchName = params.get('branchName') ?? ''
   const period = (params.get('period') as PeriodKey) || '1m'
-  const fromDate = params.get('from') ?? undefined
-  const toDate = params.get('to') ?? undefined
+  const fromDate = params.get('from') ?? ''
+  const toDate = params.get('to') ?? ''
   const rangeText = periodLabel(period, fromDate, toDate)
   const reportDate = formatJalaliLong(todayJalali())
+
+  const [brandDraft, setBrandDraft] = useState<BrandBranch | null>({
+    brandId: 0,
+    brandName,
+    branchName,
+    branchId: Number(branchId),
+    smartwifiBranchId: '',
+    lockNumber: '',
+    brandNumber: '',
+  })
 
   const featureIds = useMemo(() => {
     const raw = params.get('features')
@@ -34,35 +110,173 @@ export function ReportPage() {
       .map(([id]) => id as FeatureId)
   }, [params, type])
 
-  const diagTitles = useMemo(() => {
+  const diagIds = useMemo(() => {
     const raw = params.get('diag')
-    if (!raw) return [] as string[]
-    const ids = new Set(
-      raw
-        .split(',')
-        .map((x) => Number(x))
-        .filter((n) => !Number.isNaN(n)),
-    )
-    return DIAG_ITEMS.filter((d) => ids.has(d.id)).map((d) => d.title)
+    if (!raw) return [] as number[]
+    return raw
+      .split(',')
+      .map((x) => Number(x))
+      .filter((n) => !Number.isNaN(n) && n > 0)
   }, [params])
 
-  const sections = buildMockSections(featureIds)
-  const fileBase = `${type?.title ?? 'report'}-${brandName}`
-    .replace(/[\\/:*?"<>|]/g, '-')
+  const diagTitles = useMemo(() => {
+    const ids = new Set(diagIds)
+    return DIAG_ITEMS.filter((d) => ids.has(d.id)).map((d) => d.title)
+  }, [diagIds])
 
-  const runExport = async (kind: 'png' | 'pdf') => {
-    if (!exportRef.current) return
-    setBusy(kind)
+  const sections = useMemo(() => buildMockSections(featureIds), [featureIds])
+  const summary = useMemo(() => summarize(sections), [sections])
+
+  const place =
+    branchName && branchName !== brandName
+      ? `${brandName} — ${branchName}`
+      : brandName
+
+  const steps: Step[] = useMemo(() => {
+    const list: Step[] = [{ key: 'summary', title: 'خلاصه' }]
+    for (const section of sections) {
+      list.push({
+        key: 'section',
+        title: section.title,
+        section,
+        tone: sectionTone(section),
+      })
+    }
+    if (diagTitles.length > 0) list.push({ key: 'diag', title: 'نکات پیگیری' })
+    list.push({ key: 'send', title: 'ارسال برای مشتری' })
+    return list
+  }, [sections, diagTitles.length])
+
+  const safeStep = Math.min(step, steps.length - 1)
+  const current = steps[safeStep]
+
+  useEffect(() => {
+    topRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }, [step])
+
+  const message = useMemo(
+    () =>
+      buildCustomerMessage({
+        typeTitle: type?.title ?? '',
+        place,
+        rangeText,
+        reportDate,
+        summary,
+      }),
+    [type, place, rangeText, reportDate, summary],
+  )
+
+  const flash = (text: string, ms = 2400) => {
+    setToast(text)
+    window.setTimeout(() => setToast(''), ms)
+  }
+
+  const updateParams = (mut: (q: URLSearchParams) => void) => {
+    const q = new URLSearchParams(params)
+    mut(q)
+    setParams(q, { replace: true })
+  }
+
+  const changeBrand = (item: BrandBranch | null) => {
+    setBrandDraft(item)
+    if (!item) return
+    const q = new URLSearchParams(params)
+    q.set('brandName', item.brandName)
+    q.set('branchName', item.branchName)
+    setStep(0)
+    navigate(`/report/${typeId}/${item.branchId}?${q.toString()}`, {
+      replace: true,
+    })
+  }
+
+  const changePeriod = (key: PeriodKey) => {
+    updateParams((q) => {
+      q.set('period', key)
+      if (key !== 'custom') {
+        q.delete('from')
+        q.delete('to')
+      }
+    })
+  }
+
+  const changeRange = (f: string, t: string) => {
+    updateParams((q) => {
+      q.set('period', 'custom')
+      q.set('from', f)
+      q.set('to', t)
+    })
+  }
+
+  const setFeatures = (ids: FeatureId[]) => {
+    const order = catalog.map((f) => f.id)
+    const sorted = [...new Set(ids)].sort(
+      (a, b) => order.indexOf(a) - order.indexOf(b),
+    )
+    updateParams((q) => q.set('features', sorted.join(',')))
+  }
+
+  const requiredSet = new Set(
+    Object.entries(type?.features ?? {})
+      .filter(([, mode]) => mode === 'required')
+      .map(([id]) => id as FeatureId),
+  )
+
+  const toggleFeature = (id: FeatureId) => {
+    if (requiredSet.has(id)) return
+    setFeatures(
+      featureIds.includes(id)
+        ? featureIds.filter((f) => f !== id)
+        : [...featureIds, id],
+    )
+  }
+
+  const setCategory = (categoryId: string, checked: boolean) => {
+    const inCat = catalog.filter((f) => f.category === categoryId).map((f) => f.id)
+    const rest = featureIds.filter((f) => !inCat.includes(f))
+    const keepRequired = inCat.filter((f) => requiredSet.has(f))
+    setFeatures(checked ? [...rest, ...inCat] : [...rest, ...keepRequired])
+  }
+
+  const setDiag = (ids: number[]) => {
+    updateParams((q) => q.set('diag', ids.join(',')))
+  }
+
+  const toggleDiag = (id: number) => {
+    setDiag(diagIds.includes(id) ? diagIds.filter((x) => x !== id) : [...diagIds, id])
+  }
+
+  const downloadPdf = async () => {
+    if (!exportRef.current || busy) return
+    setBusy(true)
     try {
-      if (kind === 'png') await exportElementAsPng(exportRef.current, fileBase)
-      else await exportElementAsPdf(exportRef.current, fileBase)
-      setToast(kind === 'png' ? 'عکس گزارش دانلود شد' : 'فایل PDF گزارش دانلود شد')
-      window.setTimeout(() => setToast(''), 2200)
+      const today = serializeJalali(todayJalali()).replace(/\//g, '-')
+      const base = `${type?.title ?? 'گزارش'}-${place}-${today}`.replace(
+        /[\\/:*?"<>|]/g,
+        '-',
+      )
+      await exportReportAsPdf(
+        exportRef.current,
+        base,
+        (p, total) =>
+          `${place} · ${type?.title ?? ''} · ${reportDate} · صفحه ${toFaDigits(p)} از ${toFaDigits(total)}`,
+      )
+      flash('فایل PDF گزارش دانلود شد')
     } catch (e) {
-      setToast(e instanceof Error ? e.message : 'ساخت فایل ناموفق بود. دوباره تلاش کنید.')
-      window.setTimeout(() => setToast(''), 2800)
+      flash(
+        e instanceof Error ? e.message : 'ساخت PDF ناموفق بود. دوباره تلاش کنید.',
+        3200,
+      )
     } finally {
-      setBusy(null)
+      setBusy(false)
+    }
+  }
+
+  const copyMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(message)
+      flash('متن پیام کپی شد')
+    } catch {
+      flash('کپی انجام نشد؛ متن را دستی انتخاب کنید.', 3200)
     }
   }
 
@@ -77,74 +291,177 @@ export function ReportPage() {
     )
   }
 
-  const place =
-    branchName && branchName !== brandName
-      ? `${brandName} — ${branchName}`
-      : brandName
+  const customIncomplete = period === 'custom' && !isRangeValid(fromDate, toDate)
 
   return (
-    <>
-      <div className="report-notice no-export">
+    <div className="flow report-flow" ref={topRef}>
+      <header className="report-head">
+        <div className="report-head-main">
+          <div className="card-kicker">{type.title}</div>
+          <h2>{place}</h2>
+          <p className="muted">
+            بازه: {rangeText} · تاریخ گزارش: {reportDate}
+          </p>
+        </div>
+        <div className="actions">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            aria-expanded={editing}
+            onClick={() => setEditing((v) => !v)}
+          >
+            {editing ? 'بستن تنظیمات' : 'تغییر مجموعه، بازه یا بخش‌ها'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={busy || customIncomplete}
+            onClick={() => void downloadPdf()}
+          >
+            {busy ? 'در حال ساخت…' : 'دانلود PDF'}
+          </button>
+        </div>
+      </header>
+
+      <div className="report-notice">
         داده‌های این گزارش فعلاً <strong>نمونه</strong> است و هنوز به سیستم‌های
         اصلی وصل نشده.
       </div>
 
-      <div className="report-actions no-export">
-        <div className="report-actions-main">
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={!!busy}
-            onClick={() => void runExport('pdf')}
-          >
-            {busy === 'pdf' ? 'در حال ساخت…' : 'دانلود PDF'}
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            disabled={!!busy}
-            onClick={() => void runExport('png')}
-          >
-            {busy === 'png' ? 'در حال ساخت…' : 'دانلود عکس'}
-          </button>
-        </div>
-        <div className="actions">
-          <Link to={`/setup/${type.id}`} className="btn btn-ghost">
-            تغییر مجموعه یا بازه
-          </Link>
-          <Link to="/" className="btn btn-ghost">
-            بررسی جدید
-          </Link>
-        </div>
-      </div>
+      {editing ? (
+        <section className="step-card edit-panel">
+          <BrandSearch value={brandDraft} onChange={changeBrand} />
 
-      <div className="report-sections">
-        <section className="hero" style={{ padding: '22px 24px' }}>
           <div>
-            <div className="card-kicker" style={{ color: '#99f6e4' }}>
-              {type.title}
+            <div className="field-label">بازه زمانی (تاریخ‌ها شمسی هستند)</div>
+            <div className="period-row">
+              {PERIOD_OPTIONS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`period-chip${period === p.id ? ' active' : ''}`}
+                  aria-pressed={period === p.id}
+                  onClick={() => changePeriod(p.id)}
+                >
+                  {p.label}
+                </button>
+              ))}
             </div>
-            <h2 style={{ marginTop: 8 }}>{place}</h2>
-            <p>بازه بررسی: {rangeText}</p>
-            <p>تاریخ گزارش: {reportDate}</p>
+            {period === 'custom' ? (
+              <div style={{ marginTop: 12 }}>
+                <JalaliRangePicker
+                  from={fromDate}
+                  to={toDate}
+                  onChange={changeRange}
+                />
+                {customIncomplete ? (
+                  <p className="flow-reason" style={{ textAlign: 'start' }}>
+                    تاریخ شروع و پایان را کامل انتخاب کنید.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
-          <div className="actions" style={{ justifyContent: 'flex-end' }}>
-            <span
-              className="chip"
-              style={{ background: 'rgba(255,255,255,0.14)', color: '#ecfeff' }}
-            >
-              {toFaDigits(sections.length)} بخش · {toFaDigits(diagTitles.length)} نکته
-            </span>
+
+          <div>
+            <div className="summary-row">
+              <span>
+                <strong>{toFaDigits(featureIds.length)} بخش</strong> و{' '}
+                <strong>{toFaDigits(diagIds.length)} نکته پیگیری</strong> در
+                گزارش است.
+              </span>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                aria-expanded={showOptions}
+                onClick={() => setShowOptions((v) => !v)}
+              >
+                {showOptions ? 'بستن فهرست' : 'انتخاب بخش‌ها'}
+              </button>
+            </div>
+            {showOptions ? (
+              <div style={{ marginTop: 12 }}>
+                <ReportOptions
+                  features={catalog}
+                  checked={new Set(featureIds)}
+                  required={requiredSet}
+                  diag={diagIds}
+                  onToggleFeature={toggleFeature}
+                  onSetCategory={setCategory}
+                  onToggleDiag={toggleDiag}
+                  onSetDiag={setDiag}
+                />
+              </div>
+            ) : null}
           </div>
         </section>
+      ) : null}
 
-        {sections.map((section) => (
-          <section key={section.featureId} className="section-block">
+      <nav className="journey" aria-label="مراحل گزارش">
+        <ol>
+          {steps.map((s, i) => {
+            const tone = s.key === 'section' ? s.tone : 'info'
+            return (
+              <li key={`${s.key}-${i}`}>
+                <button
+                  type="button"
+                  className={`journey-chip tone-${tone}${i === safeStep ? ' active' : ''}`}
+                  aria-current={i === safeStep ? 'step' : undefined}
+                  onClick={() => setStep(i)}
+                >
+                  <span className="journey-dot" />
+                  {s.title}
+                </button>
+              </li>
+            )
+          })}
+        </ol>
+        <p className="muted journey-count">
+          مرحله {toFaDigits(safeStep + 1)} از {toFaDigits(steps.length)}
+        </p>
+      </nav>
+
+      <section className="section-block journey-body">
+        {current.key === 'summary' ? (
+          <>
+            <h3 style={{ margin: '0 0 4px' }}>خلاصه برای شروع صحبت با مشتری</h3>
+            <p className="muted" style={{ margin: '0 0 14px' }}>
+              اول از این خلاصه شروع کنید؛ بعد با دکمه «بعدی» بخش‌ها را یکی‌یکی
+              مرور کنید.
+            </p>
+            <div className="sum-counts">
+              <div className="sum-count sum-bad">
+                <strong>{toFaDigits(summary.bad.length)}</strong>
+                <span>نیاز به اقدام</span>
+              </div>
+              <div className="sum-count sum-warn">
+                <strong>{toFaDigits(summary.warn.length)}</strong>
+                <span>قابل بهبود</span>
+              </div>
+              <div className="sum-count sum-ok">
+                <strong>{toFaDigits(summary.ok.length)}</strong>
+                <span>وضعیت خوب</span>
+              </div>
+            </div>
+            <ItemList title="نیاز به اقدام" tone="bad" items={summary.bad} />
+            <ItemList title="قابل بهبود" tone="warn" items={summary.warn} />
+            <ItemList title="نقاط قوت" tone="ok" items={summary.ok} />
+            {sections.length === 0 ? (
+              <p className="muted">هیچ بخشی برای گزارش انتخاب نشده است.</p>
+            ) : null}
+          </>
+        ) : null}
+
+        {current.key === 'section' ? (
+          <>
             <div className="section-head">
-              <h3 style={{ margin: 0 }}>{section.title}</h3>
+              <h3 style={{ margin: 0 }}>{current.section.title}</h3>
+              <span className={`chip ${current.tone === 'info' ? '' : current.tone}`}>
+                {TONE_TEXT[current.tone]}
+              </span>
             </div>
             <div className="kpi-grid">
-              {section.metrics.map((m) => (
+              {current.section.metrics.map((m) => (
                 <div key={m.label} className="kpi">
                   <div className={`kpi-bar ${m.tone ?? 'info'}`} />
                   <div className="kpi-body">
@@ -155,16 +472,7 @@ export function ReportPage() {
                 </div>
               ))}
             </div>
-            {section.hints?.map((h) => (
-              <div
-                key={h.text}
-                className={`hint ${h.tone ?? ''}`}
-                style={{ marginTop: 12 }}
-              >
-                {h.text}
-              </div>
-            ))}
-            {section.rows ? (
+            {current.section.rows ? (
               <table className="table" style={{ marginTop: 12 }}>
                 <thead>
                   <tr>
@@ -173,7 +481,7 @@ export function ReportPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {section.rows.map((row) => (
+                  {current.section.rows.map((row) => (
                     <tr key={row.label}>
                       <td>{row.label}</td>
                       <td>{row.value}</td>
@@ -182,39 +490,108 @@ export function ReportPage() {
                 </tbody>
               </table>
             ) : null}
-          </section>
-        ))}
+            {(() => {
+              const points = sectionTalkingPoints(current.section)
+              return points.length > 0 ? (
+                <div className="talk-box">
+                  <h4>نکته برای گفتن به مشتری</h4>
+                  <ul>
+                    {points.map((p, i) => (
+                      <li key={i}>{p.text}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null
+            })()}
+          </>
+        ) : null}
 
-        {diagTitles.length > 0 ? (
-          <section className="section-block">
-            <div className="section-head">
-              <h3 style={{ margin: 0 }}>نکات قابل پیگیری</h3>
-            </div>
+        {current.key === 'diag' ? (
+          <>
+            <h3 style={{ margin: '0 0 4px' }}>نکات قابل پیگیری</h3>
+            <p className="muted" style={{ margin: '0 0 12px' }}>
+              این موارد را برای مشتری پیگیری کنید.
+            </p>
             <ul className="diag-screen-list">
               {diagTitles.map((t) => (
                 <li key={t}>{t}</li>
               ))}
             </ul>
-          </section>
+          </>
         ) : null}
+
+        {current.key === 'send' ? (
+          <>
+            <h3 style={{ margin: '0 0 4px' }}>ارسال برای مشتری</h3>
+            <p className="muted" style={{ margin: '0 0 14px' }}>
+              ۱) فایل PDF را دانلود کنید. ۲) متن پیام را کپی کنید. ۳) هر دو را برای
+              مشتری بفرستید.
+            </p>
+            <div className="send-actions">
+              <button
+                type="button"
+                className="btn btn-primary btn-large"
+                disabled={busy || customIncomplete}
+                onClick={() => void downloadPdf()}
+              >
+                {busy ? 'در حال ساخت…' : 'دانلود PDF گزارش'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-large"
+                onClick={() => void copyMessage()}
+              >
+                کپی متن پیام
+              </button>
+            </div>
+            <div className="field-label" style={{ marginTop: 16 }}>
+              پیش‌نمایش متن پیام
+            </div>
+            <pre className="message-preview">{message}</pre>
+            <div className="actions" style={{ marginTop: 12 }}>
+              <Link to="/" className="btn btn-ghost">
+                شروع بررسی جدید
+              </Link>
+            </div>
+          </>
+        ) : null}
+      </section>
+
+      <div className="journey-nav">
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={safeStep === 0}
+          onClick={() => setStep(safeStep - 1)}
+        >
+          → قبلی
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={safeStep >= steps.length - 1}
+          onClick={() => setStep(safeStep + 1)}
+        >
+          بعدی ←
+        </button>
       </div>
 
-      {/* Off-screen solid sheet — only this is captured for PNG/PDF */}
+      {/* ورق خارج از صفحه؛ فقط برای ساخت PDF */}
       <div className="export-host" aria-hidden="true">
         <div ref={exportRef}>
           <ExportSheet
             typeTitle={type.title}
-            brandName={brandName}
-            branchName={branchName}
+            place={place}
             periodLabel={rangeText}
             reportDate={reportDate}
             sections={sections}
             diagTitles={diagTitles}
+            summary={summary}
           />
         </div>
       </div>
 
       {toast ? <div className="toast">{toast}</div> : null}
-    </>
+    </div>
   )
 }

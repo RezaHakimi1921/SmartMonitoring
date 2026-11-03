@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { BrandSearch } from '../components/BrandSearch'
-import { JalaliDatePicker } from '../components/JalaliDatePicker'
-import { FEATURE_CATEGORIES } from '../data/catalog'
+import { JalaliRangePicker } from '../components/JalaliRangePicker'
+import { ReportOptions } from '../components/ReportOptions'
 import { DIAG_ITEMS } from '../data/diagCatalog'
 import {
   isRangeValid,
@@ -42,20 +42,6 @@ export function SetupPage() {
     const catalog = loadFeatures()
     if (current) setSelected(selectionForType(current, catalog))
   }, [typeId])
-
-  const grouped = useMemo(() => {
-    return FEATURE_CATEGORIES.map((cat) => ({
-      ...cat,
-      items: selected
-        .map((s) => {
-          const meta = features.find((f) => f.id === s.id)
-          return meta ? { ...s, meta } : null
-        })
-        .filter(
-          (x): x is NonNullable<typeof x> => !!x && x.meta.category === cat.id,
-        ),
-    })).filter((g) => g.items.length > 0)
-  }, [selected, features])
 
   const enabledCount = selected.filter((s) => s.checked).length
 
@@ -178,18 +164,14 @@ export function SetupPage() {
           ))}
         </div>
         {period === 'custom' ? (
-          <div className="custom-dates">
-            <JalaliDatePicker
-              label="از تاریخ"
-              value={fromDate}
-              onChange={setFromDate}
-            />
-            <JalaliDatePicker
-              label="تا تاریخ"
-              value={toDate}
-              onChange={setToDate}
-            />
-          </div>
+          <JalaliRangePicker
+            from={fromDate}
+            to={toDate}
+            onChange={(f, t) => {
+              setFromDate(f)
+              setToDate(t)
+            }}
+          />
         ) : null}
         <p className="period-summary">
           بازه انتخاب‌شده: <strong>{periodLabel(period, fromDate, toDate)}</strong>
@@ -223,115 +205,22 @@ export function SetupPage() {
         </div>
 
         {showCustomize ? (
-          <div className="category-stack">
-            {grouped.map((group) => {
-              const onCount = group.items.filter((i) => i.checked).length
-              return (
-                <section key={group.id} className="category-block">
-                  <div className="category-head">
-                    <div>
-                      <h4>{group.title}</h4>
-                      <p className="muted">{group.description}</p>
-                    </div>
-                    <div className="actions">
-                      <span className="chip">
-                        {toFaDigits(onCount)} از {toFaDigits(group.items.length)}
-                      </span>
-                      <button
-                        type="button"
-                        className="btn btn-ghost"
-                        style={{ height: 36 }}
-                        onClick={() => setCategory(group.id, true)}
-                      >
-                        انتخاب همه
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-ghost"
-                        style={{ height: 36 }}
-                        onClick={() => setCategory(group.id, false)}
-                      >
-                        برداشتن همه
-                      </button>
-                    </div>
-                  </div>
-                  <div className="feature-list">
-                    {group.items.map((item) => (
-                      <label
-                        key={item.id}
-                        className={`feature-item${item.mode === 'required' ? ' required' : ''}${item.checked ? ' is-on' : ''}`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={item.checked}
-                          disabled={item.mode === 'required'}
-                          onChange={() => toggle(item.id, item.mode)}
-                        />
-                        <span>
-                          <strong>
-                            {item.meta.title}
-                            {item.mode === 'required' ? ' (الزامی)' : ''}
-                          </strong>
-                          <span className="muted">{item.meta.description}</span>
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </section>
+          <ReportOptions
+            features={features}
+            checked={new Set(selected.filter((f) => f.checked).map((f) => f.id))}
+            required={
+              new Set(
+                selected.filter((f) => f.mode === 'required').map((f) => f.id),
               )
-            })}
-
-            <section className="category-block">
-              <div className="category-head">
-                <div>
-                  <h4>نکات قابل پیگیری</h4>
-                  <p className="muted">
-                    مواردی که در پایان گزارش برای پیگیری فهرست می‌شوند
-                  </p>
-                </div>
-                <div className="actions">
-                  <span className="chip">
-                    {toFaDigits(diagSelected.length)} از{' '}
-                    {toFaDigits(DIAG_ITEMS.length)}
-                  </span>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    style={{ height: 36 }}
-                    onClick={() => setDiagSelected(DIAG_ITEMS.map((d) => d.id))}
-                  >
-                    انتخاب همه
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    style={{ height: 36 }}
-                    onClick={() => setDiagSelected([])}
-                  >
-                    برداشتن همه
-                  </button>
-                </div>
-              </div>
-              <div className="feature-list">
-                {DIAG_ITEMS.map((d) => (
-                  <label
-                    key={d.id}
-                    className={`feature-item${diagSelected.includes(d.id) ? ' is-on' : ''}`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={diagSelected.includes(d.id)}
-                      onChange={() => toggleDiag(d.id)}
-                    />
-                    <span>
-                      <strong>{d.title}</strong>
-                      <span className="muted">{d.hint}</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </section>
-          </div>
+            }
+            diag={diagSelected}
+            onToggleFeature={(id) =>
+              toggle(id, selected.find((f) => f.id === id)?.mode ?? null)
+            }
+            onSetCategory={setCategory}
+            onToggleDiag={toggleDiag}
+            onSetDiag={setDiagSelected}
+          />
         ) : null}
       </section>
 
