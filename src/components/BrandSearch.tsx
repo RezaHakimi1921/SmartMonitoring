@@ -22,9 +22,9 @@ export function BrandSearch({ value, onChange }: Props) {
         setItems(list)
         setLoading(false)
       })
-      .catch((e: unknown) => {
+      .catch(() => {
         if (!alive) return
-        setError(e instanceof Error ? e.message : 'خطا در بارگذاری')
+        setError('لیست مجموعه‌ها بارگذاری نشد')
         setLoading(false)
       })
     return () => {
@@ -40,12 +40,12 @@ export function BrandSearch({ value, onChange }: Props) {
   return (
     <div className="brand-search">
       <label htmlFor="brand-q" className="field-label">
-        جستجوی مجموعه (نام یا لاک‌نامبر)
+        نام مجموعه یا شماره قفل
       </label>
       <input
         id="brand-q"
         className="input"
-        placeholder="مثال: کافه … یا ۹۰۹۶۸۹"
+        placeholder={loading ? 'در حال آماده‌سازی…' : 'جستجو کنید…'}
         value={query}
         onChange={(e) => {
           setQuery(e.target.value)
@@ -54,30 +54,27 @@ export function BrandSearch({ value, onChange }: Props) {
         onFocus={() => setOpen(true)}
         autoComplete="off"
       />
-      <p className="muted" style={{ margin: '8px 0 0' }}>
-        منبع: همان فیلدهای AdminDashboard (نام برند/شعبه، LockNumber =
-        SepandBranchCloudConsumerId، BrandNumber)
-        {loading ? ' · در حال بارگذاری…' : ` · ${items.length.toLocaleString('fa-IR')} شعبه`}
-      </p>
       {error ? <div className="hint bad">{error}</div> : null}
 
       {value ? (
         <div className="selected-brand">
           <div>
             <strong>
-              {value.brandName} — {value.branchName}
+              {value.brandName}
+              {value.branchName !== value.brandName
+                ? ` — ${value.branchName}`
+                : ''}
             </strong>
-            <div className="muted">
-              لاک: {value.lockNumber || '—'} · BrandNo: {value.brandNumber} · BranchId:{' '}
-              {value.branchId}
-            </div>
           </div>
           <button
             type="button"
             className="btn btn-ghost"
-            onClick={() => onChange(null)}
+            onClick={() => {
+              onChange(null)
+              setQuery('')
+            }}
           >
-            پاک کردن
+            تغییر
           </button>
         </div>
       ) : null}
@@ -86,7 +83,7 @@ export function BrandSearch({ value, onChange }: Props) {
         <div className="brand-results" role="listbox">
           {results.length === 0 ? (
             <div className="muted" style={{ padding: 12 }}>
-              نتیجه‌ای پیدا نشد
+              موردی پیدا نشد
             </div>
           ) : (
             results.map((item) => (
@@ -96,16 +93,23 @@ export function BrandSearch({ value, onChange }: Props) {
                 className="brand-result"
                 onClick={() => {
                   onChange(item)
-                  setQuery(`${item.brandName} — ${item.branchName}`)
+                  setQuery(
+                    item.branchName !== item.brandName
+                      ? `${item.brandName} — ${item.branchName}`
+                      : item.brandName,
+                  )
                   setOpen(false)
                 }}
               >
                 <strong>
-                  {item.brandName} — {item.branchName}
+                  {item.brandName}
+                  {item.branchName !== item.brandName
+                    ? ` — ${item.branchName}`
+                    : ''}
                 </strong>
-                <span className="muted">
-                  لاک {item.lockNumber || '—'} · شماره برند {item.brandNumber}
-                </span>
+                {item.lockNumber && item.lockNumber !== '0' ? (
+                  <span className="muted">شماره قفل {item.lockNumber}</span>
+                ) : null}
               </button>
             ))
           )}

@@ -73,7 +73,7 @@ export function AppShell() {
             </button>
             <h1>{title}</h1>
           </div>
-          <span className="appbar-meta">پروتوتایپ UI · داده mock</span>
+          <span className="appbar-meta">پنل مانیتورینگ باشگاه</span>
         </header>
 
         <main className="content">

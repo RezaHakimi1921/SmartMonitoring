@@ -18,7 +18,7 @@ export const FEATURE_CATEGORIES: {
   {
     id: 'clubSettings',
     title: 'باشگاه و تنظیمات',
-    description: 'گروه، برند، ایونت، اسمارت بلاک',
+    description: 'گروه، برند، ایونت، لیست بلاک',
   },
   {
     id: 'credit',
@@ -84,7 +84,7 @@ export const FEATURES: Feature[] = [
   },
   {
     id: 'smartBlock',
-    title: 'اسمارت بلاک',
+    title: 'لیست بلاک مشتریان',
     description: 'وضعیت و تعداد افراد بلاک',
     source: 'club',
     category: 'clubSettings',

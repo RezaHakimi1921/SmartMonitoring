@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { BrandSearch } from '../components/BrandSearch'
-import {
-  FEATURE_CATEGORIES,
-  SOURCE_LABEL,
-} from '../data/catalog'
+import { FEATURE_CATEGORIES } from '../data/catalog'
+import { DIAG_ITEMS } from '../data/diagCatalog'
+import { PERIOD_OPTIONS, type PeriodKey } from '../data/periods'
 import type { BrandBranch, FeatureId, FeatureMode } from '../data/types'
 import {
   loadFeatures,
@@ -20,9 +19,15 @@ export function SetupPage() {
   const type = types.find((t) => t.id === typeId)
 
   const [brand, setBrand] = useState<BrandBranch | null>(null)
+  const [period, setPeriod] = useState<PeriodKey>('1m')
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
   const [selected, setSelected] = useState<
     { id: FeatureId; mode: FeatureMode | null; checked: boolean }[]
   >([])
+  const [diagSelected, setDiagSelected] = useState<number[]>(() =>
+    DIAG_ITEMS.slice(0, 8).map((d) => d.id),
+  )
 
   useEffect(() => {
     const current = loadReviewTypes().find((t) => t.id === typeId)
@@ -38,9 +43,13 @@ export function SetupPage() {
           const meta = features.find((f) => f.id === s.id)
           return meta ? { ...s, meta } : null
         })
-        .filter((x): x is NonNullable<typeof x> => !!x && x.meta.category === cat.id),
+        .filter(
+          (x): x is NonNullable<typeof x> => !!x && x.meta.category === cat.id,
+        ),
     })).filter((g) => g.items.length > 0)
   }, [selected, features])
+
+  const enabledCount = selected.filter((s) => s.checked).length
 
   if (!type) {
     return (
@@ -72,43 +81,113 @@ export function SetupPage() {
     )
   }
 
+  const toggleDiag = (id: number) => {
+    setDiagSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    )
+  }
+
+  const canStart =
+    !!brand &&
+    enabledCount > 0 &&
+    (period !== 'custom' || (!!fromDate && !!toDate))
+
   const start = () => {
-    if (!brand) return
+    if (!brand || !canStart) return
     const ids = selected.filter((f) => f.checked).map((f) => f.id)
     const q = new URLSearchParams({
       features: ids.join(','),
       brandName: brand.brandName,
       branchName: brand.branchName,
-      lockNumber: brand.lockNumber,
-      brandId: String(brand.brandId),
-      branchId: String(brand.branchId),
+      period,
+      diag: diagSelected.join(','),
     })
+    if (period === 'custom') {
+      q.set('from', fromDate)
+      q.set('to', toDate)
+    }
     navigate(`/report/${type.id}/${brand.branchId}?${q.toString()}`)
   }
 
   return (
     <>
-      <section className="page-intro">
-        <h2 style={{ margin: 0, fontSize: 22 }}>{type.title}</h2>
-        <p>{type.description}</p>
-      </section>
+      <div className="setup-topbar">
+        <div className="setup-topbar-main">
+          <div>
+            <div className="card-kicker">{type.title}</div>
+            <h2 style={{ margin: '4px 0 0', fontSize: 20 }}>{type.description}</h2>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary setup-start-btn"
+            disabled={!canStart}
+            onClick={start}
+          >
+            شروع و ساخت گزارش
+          </button>
+        </div>
 
-      <div className="panel">
-        <h3 className="panel-title">۱. انتخاب مجموعه</h3>
-        <BrandSearch value={brand} onChange={setBrand} />
+        <div className="setup-topbar-grid">
+          <div>
+            <BrandSearch value={brand} onChange={setBrand} />
+          </div>
+          <div>
+            <div className="field-label">بازه محاسبات</div>
+            <div className="period-row">
+              {PERIOD_OPTIONS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`period-chip${period === p.id ? ' active' : ''}`}
+                  onClick={() => setPeriod(p.id)}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            {period === 'custom' ? (
+              <div className="custom-dates">
+                <input
+                  type="date"
+                  className="input"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  aria-label="از تاریخ"
+                />
+                <input
+                  type="date"
+                  className="input"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  aria-label="تا تاریخ"
+                />
+              </div>
+            ) : null}
+          </div>
+        </div>
+        {!brand ? (
+          <p className="muted" style={{ margin: '10px 0 0' }}>
+            اول مجموعه را انتخاب کنید، بعد گزارش ساخته می‌شود.
+          </p>
+        ) : (
+          <p className="muted" style={{ margin: '10px 0 0' }}>
+            {enabledCount} مورد از گزارش + {diagSelected.length} نکته تشخیصی
+            انتخاب شده
+          </p>
+        )}
       </div>
 
       <div className="panel">
         <div className="section-head">
           <h3 className="panel-title" style={{ margin: 0 }}>
-            ۲. ویژگی‌ها به‌تفکیک دسته
+            بخش‌های گزارش
           </h3>
-          <span className="chip">پیش‌فرض نوع · قابل تغییر</span>
+          <span className="chip">قابل کم و زیاد کردن</span>
         </div>
 
         <div className="category-stack">
           {grouped.map((group) => {
-            const enabledCount = group.items.filter((i) => i.checked).length
+            const onCount = group.items.filter((i) => i.checked).length
             return (
               <section key={group.id} className="category-block">
                 <div className="category-head">
@@ -118,7 +197,7 @@ export function SetupPage() {
                   </div>
                   <div className="actions">
                     <span className="chip">
-                      {enabledCount}/{group.items.length} فعال
+                      {onCount}/{group.items.length}
                     </span>
                     <button
                       type="button"
@@ -152,15 +231,7 @@ export function SetupPage() {
                       />
                       <span>
                         <strong>{item.meta.title}</strong>
-                        <span className="muted">
-                          {item.meta.description} ·{' '}
-                          {SOURCE_LABEL[item.meta.source]}
-                          {item.mode === 'required'
-                            ? ' · اجباری'
-                            : item.mode
-                              ? ''
-                              : ' · خارج از پیش‌فرض نوع'}
-                        </span>
+                        <span className="muted">{item.meta.description}</span>
                       </span>
                     </label>
                   ))}
@@ -168,20 +239,67 @@ export function SetupPage() {
               </section>
             )
           })}
+
+          <section className="category-block">
+            <div className="category-head">
+              <div>
+                <h4>نکات تشخیصی مجموعه</h4>
+                <p className="muted">
+                  موارد آماده برای پیگیری سریع وضعیت مجموعه
+                </p>
+              </div>
+              <div className="actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ height: 36 }}
+                  onClick={() => setDiagSelected(DIAG_ITEMS.map((d) => d.id))}
+                >
+                  همه
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ height: 36 }}
+                  onClick={() => setDiagSelected([])}
+                >
+                  هیچ‌کدام
+                </button>
+              </div>
+            </div>
+            <div className="feature-list">
+              {DIAG_ITEMS.map((d) => (
+                <label
+                  key={d.id}
+                  className={`feature-item${diagSelected.includes(d.id) ? ' is-on' : ''}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={diagSelected.includes(d.id)}
+                    onChange={() => toggleDiag(d.id)}
+                  />
+                  <span>
+                    <strong>{d.title}</strong>
+                    <span className="muted">{d.hint}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </section>
         </div>
       </div>
 
-      <div className="actions">
+      <div className="actions sticky-mobile-actions">
         <button
           type="button"
           className="btn btn-primary"
-          disabled={!brand || selected.every((s) => !s.checked)}
+          disabled={!canStart}
           onClick={start}
         >
-          شروع ساخت گزارش
+          شروع و ساخت گزارش
         </button>
         <Link to="/" className="btn btn-ghost">
-          انصراف
+          بازگشت
         </Link>
       </div>
     </>

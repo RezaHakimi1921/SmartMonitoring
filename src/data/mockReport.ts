@@ -101,7 +101,7 @@ const SECTIONS: Record<FeatureId, ReportSection> = {
   },
   smartBlock: {
     featureId: 'smartBlock',
-    title: 'اسمارت بلاک',
+    title: 'لیست بلاک مشتریان',
     metrics: [{ label: 'تعداد', value: '۱۵ نفر', tone: 'info' }],
   },
   balance: {

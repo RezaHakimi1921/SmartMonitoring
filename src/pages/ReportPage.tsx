@@ -1,21 +1,27 @@
 import { useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { ExportSheet } from '../components/ExportSheet'
+import { DIAG_ITEMS } from '../data/diagCatalog'
 import { buildMockSections } from '../data/mockReport'
+import { periodLabel, type PeriodKey } from '../data/periods'
 import type { FeatureId } from '../data/types'
 import { exportElementAsPdf, exportElementAsPng } from '../lib/exportReport'
 import { loadReviewTypes } from '../lib/storage'
 
 export function ReportPage() {
-  const { typeId = '', branchId = '' } = useParams()
+  const { typeId = '' } = useParams()
   const [params] = useSearchParams()
-  const reportRef = useRef<HTMLDivElement>(null)
+  const exportRef = useRef<HTMLDivElement>(null)
   const [busy, setBusy] = useState<'png' | 'pdf' | null>(null)
   const [toast, setToast] = useState('')
 
   const type = loadReviewTypes().find((t) => t.id === typeId)
   const brandName = params.get('brandName') ?? 'مجموعه'
-  const branchName = params.get('branchName') ?? branchId
-  const lockNumber = params.get('lockNumber') ?? '—'
+  const branchName = params.get('branchName') ?? ''
+  const period = (params.get('period') as PeriodKey) || '1m'
+  const fromDate = params.get('from') ?? undefined
+  const toDate = params.get('to') ?? undefined
+  const rangeText = periodLabel(period, fromDate, toDate)
 
   const featureIds = useMemo(() => {
     const raw = params.get('features')
@@ -26,16 +32,28 @@ export function ReportPage() {
       .map(([id]) => id as FeatureId)
   }, [params, type])
 
+  const diagTitles = useMemo(() => {
+    const raw = params.get('diag')
+    if (!raw) return [] as string[]
+    const ids = new Set(
+      raw
+        .split(',')
+        .map((x) => Number(x))
+        .filter((n) => !Number.isNaN(n)),
+    )
+    return DIAG_ITEMS.filter((d) => ids.has(d.id)).map((d) => d.title)
+  }, [params])
+
   const sections = buildMockSections(featureIds)
-  const fileBase = `${type?.title ?? 'report'}-${brandName}-${branchName}`
+  const fileBase = `${type?.title ?? 'report'}-${brandName}`
     .replace(/[\\/:*?"<>|]/g, '-')
 
   const runExport = async (kind: 'png' | 'pdf') => {
-    if (!reportRef.current) return
+    if (!exportRef.current) return
     setBusy(kind)
     try {
-      if (kind === 'png') await exportElementAsPng(reportRef.current, fileBase)
-      else await exportElementAsPdf(reportRef.current, fileBase)
+      if (kind === 'png') await exportElementAsPng(exportRef.current, fileBase)
+      else await exportElementAsPdf(exportRef.current, fileBase)
       setToast(kind === 'png' ? 'عکس ذخیره شد' : 'PDF ذخیره شد')
       window.setTimeout(() => setToast(''), 2200)
     } catch (e) {
@@ -57,13 +75,18 @@ export function ReportPage() {
     )
   }
 
+  const place =
+    branchName && branchName !== brandName
+      ? `${brandName} — ${branchName}`
+      : brandName
+
   return (
     <>
       <div className="actions no-export" style={{ justifyContent: 'space-between' }}>
         <div className="actions">
           <span className="chip ok">بعد از تمدید ✅ (نمونه)</span>
           <span className="chip bad">تیک اتمام حجت ندارد ❌</span>
-          <span className="chip">صحبت با: —</span>
+          <span className="chip">بازه: {rangeText}</span>
         </div>
         <div className="actions">
           <button
@@ -83,32 +106,26 @@ export function ReportPage() {
             {busy === 'pdf' ? 'در حال ساخت…' : 'خروجی PDF'}
           </button>
           <Link to={`/setup/${type.id}`} className="btn btn-ghost">
-            ویرایش ویژگی‌ها
+            ویرایش
           </Link>
         </div>
       </div>
 
-      <div ref={reportRef} className="report-sections report-export-root">
+      <div className="report-sections">
         <section className="hero" style={{ padding: '22px 24px' }}>
           <div>
             <div className="card-kicker" style={{ color: '#99f6e4' }}>
               {type.title}
             </div>
-            <h2 style={{ marginTop: 8 }}>
-              {brandName} — {branchName}
-            </h2>
-            <p>
-              لاک‌نامبر: {lockNumber} · BranchId: {branchId}
-              <br />
-              اعداد فعلاً mock هستند؛ اتصال SP و BI در فاز بعد.
-            </p>
+            <h2 style={{ marginTop: 8 }}>{place}</h2>
+            <p>بازه بررسی: {rangeText}</p>
           </div>
           <div className="actions" style={{ justifyContent: 'flex-end' }}>
             <span
               className="chip"
               style={{ background: 'rgba(255,255,255,0.14)', color: '#ecfeff' }}
             >
-              {sections.length} بخش فعال
+              {sections.length} بخش · {diagTitles.length} نکته
             </span>
           </div>
         </section>
@@ -159,6 +176,33 @@ export function ReportPage() {
             ) : null}
           </section>
         ))}
+
+        {diagTitles.length > 0 ? (
+          <section className="section-block">
+            <div className="section-head">
+              <h3 style={{ margin: 0 }}>نکات قابل پیگیری</h3>
+            </div>
+            <ul className="diag-screen-list">
+              {diagTitles.map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+      </div>
+
+      {/* Off-screen solid sheet — only this is captured for PNG/PDF */}
+      <div className="export-host" aria-hidden="true">
+        <div ref={exportRef}>
+          <ExportSheet
+            typeTitle={type.title}
+            brandName={brandName}
+            branchName={branchName}
+            periodLabel={rangeText}
+            sections={sections}
+            diagTitles={diagTitles}
+          />
+        </div>
       </div>
 
       {toast ? <div className="toast">{toast}</div> : null}
