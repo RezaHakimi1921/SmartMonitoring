@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FEATURES, SOURCE_LABEL } from '../data/catalog'
 import type { FeatureMode, ReviewType } from '../data/types'
 import {
@@ -8,10 +8,11 @@ import {
   saveReviewTypes,
 } from '../lib/storage'
 
-const MODES: { id: FeatureMode; label: string }[] = [
-  { id: 'required', label: 'اجباری' },
-  { id: 'defaultOn', label: 'پیش‌فرض روشن' },
-  { id: 'defaultOff', label: 'پیش‌فرض خاموش' },
+/** سه حالت روشن برای هر بخش؛ «غیرفعال» یعنی پیش‌فرض خاموش (کاربر می‌تواند روشنش کند). */
+const MODES: { id: FeatureMode | 'off'; label: string; hint: string }[] = [
+  { id: 'required', label: 'اجباری', hint: 'همیشه در گزارش است و کاربر نمی‌تواند بردارد' },
+  { id: 'defaultOn', label: 'پیشنهادی', hint: 'از قبل انتخاب شده؛ کاربر می‌تواند بردارد' },
+  { id: 'off', label: 'غیرفعال', hint: 'از قبل انتخاب نیست؛ کاربر می‌تواند اضافه کند' },
 ]
 
 export function AdminPage() {
@@ -19,15 +20,28 @@ export function AdminPage() {
   const features = loadFeatures()
   const [activeTypeId, setActiveTypeId] = useState(types[0]?.id ?? '')
   const [toast, setToast] = useState('')
+  const [saved, setSaved] = useState(() => JSON.stringify(loadReviewTypes()))
+  const [confirmReset, setConfirmReset] = useState(false)
+  const dirty = JSON.stringify(types) !== saved
+
+  // هشدار هنگام بستن صفحه با تغییر ذخیره‌نشده
+  useEffect(() => {
+    if (!dirty) return
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
 
   const active = types.find((t) => t.id === activeTypeId)
 
-  const setMode = (featureId: string, mode: FeatureMode | '') => {
+  const setMode = (featureId: string, mode: FeatureMode | 'off' | '') => {
     setTypes((prev) =>
       prev.map((t) => {
         if (t.id !== activeTypeId) return t
         const next = { ...t.features }
-        if (!mode) delete next[featureId as keyof typeof next]
+        if (!mode || mode === 'off') delete next[featureId as keyof typeof next]
         else next[featureId as keyof typeof next] = mode
         return { ...t, features: next }
       }),
@@ -36,6 +50,7 @@ export function AdminPage() {
 
   const persist = () => {
     saveReviewTypes(types)
+    setSaved(JSON.stringify(types))
     setToast('تنظیمات ذخیره شد')
     window.setTimeout(() => setToast(''), 2000)
   }
@@ -44,6 +59,8 @@ export function AdminPage() {
     resetCatalog()
     const fresh = loadReviewTypes()
     setTypes(fresh)
+    setSaved(JSON.stringify(fresh))
+    setConfirmReset(false)
     setActiveTypeId(fresh[0]?.id ?? '')
     setToast('بازگشت به پیش‌فرض')
     window.setTimeout(() => setToast(''), 2000)
@@ -113,21 +130,28 @@ export function AdminPage() {
                       </td>
                       <td>{SOURCE_LABEL[f.source]}</td>
                       <td>
-                        <select
-                          className="select"
-                          style={{ height: 40 }}
-                          value={current}
-                          onChange={(e) =>
-                            setMode(f.id, e.target.value as FeatureMode | '')
-                          }
+                        <div
+                          className="segmented"
+                          role="radiogroup"
+                          aria-label={`حالت ${f.title}`}
                         >
-                          <option value="">وصل نیست</option>
-                          {MODES.map((m) => (
-                            <option key={m.id} value={m.id}>
-                              {m.label}
-                            </option>
-                          ))}
-                        </select>
+                          {MODES.map((m) => {
+                            const on = (current || 'off') === m.id
+                            return (
+                              <button
+                                key={m.id}
+                                type="button"
+                                role="radio"
+                                aria-checked={on}
+                                title={m.hint}
+                                className={`seg seg-${m.id}${on ? ' on' : ''}`}
+                                onClick={() => setMode(f.id, m.id)}
+                              >
+                                {m.label}
+                              </button>
+                            )
+                          })}
+                        </div>
                       </td>
                     </tr>
                   )
@@ -154,13 +178,45 @@ export function AdminPage() {
         </div>
       </div>
 
-      <div className="actions">
-        <button type="button" className="btn btn-primary" onClick={persist}>
-          ذخیره پیکربندی
-        </button>
-        <button type="button" className="btn btn-ghost" onClick={reset}>
-          بازنشانی پیش‌فرض
-        </button>
+      <div className="save-bar">
+        <span className={dirty ? 'save-state dirty' : 'save-state muted'}>
+          {dirty ? 'تغییرات ذخیره نشده است' : 'همه تغییرات ذخیره شده است'}
+        </span>
+        <div className="actions">
+          {confirmReset ? (
+            <>
+              <span>همه تنظیمات به حالت اولیه برگردد؟</span>
+              <button type="button" className="btn btn-primary" onClick={reset}>
+                بله، بازنشانی
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setConfirmReset(false)}
+              >
+                انصراف
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setConfirmReset(true)}
+              >
+                بازنشانی به پیش‌فرض
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={!dirty}
+                onClick={persist}
+              >
+                ذخیره تغییرات
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {toast ? <div className="toast">{toast}</div> : null}

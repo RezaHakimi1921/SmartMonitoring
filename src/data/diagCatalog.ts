@@ -46,3 +46,6 @@ export const DIAG_ITEMS: DiagItem[] = [
   { id: 39, title: 'ارسال بدون پیک', hint: 'سفارش ارسالی بدون پیک ثبت شده' },
   { id: 40, title: 'روز بدون سفارش', hint: 'در بازه اخیر روزهایی بدون سفارش بوده' },
 ]
+
+/** نکات پیگیری که به‌صورت پیش‌فرض در گزارش هستند */
+export const DEFAULT_DIAG_IDS = DIAG_ITEMS.slice(0, 8).map((d) => d.id)

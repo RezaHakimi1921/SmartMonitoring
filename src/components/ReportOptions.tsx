@@ -13,6 +13,8 @@ type Props = {
   onSetCategory: (categoryId: string, checked: boolean) => void
   onToggleDiag: (id: number) => void
   onSetDiag: (ids: number[]) => void
+  /** بازگشت به انتخاب‌های پیشنهادی همین نوع بررسی */
+  onReset?: () => void
 }
 
 /** فهرست انتخاب بخش‌ها و نکات پیگیری — هم در تنظیم بررسی و هم در صفحه گزارش. */
@@ -25,9 +27,20 @@ export function ReportOptions({
   onSetCategory,
   onToggleDiag,
   onSetDiag,
+  onReset,
 }: Props) {
   return (
     <div className="category-stack">
+      {onReset ? (
+        <div className="options-reset">
+          <span className="muted">
+            انتخاب‌های اولیه برای این نوع بررسی پیشنهاد شده‌اند.
+          </span>
+          <button type="button" className="btn btn-ghost" onClick={onReset}>
+            بازگشت به پیشنهاد پیش‌فرض
+          </button>
+        </div>
+      ) : null}
       {FEATURE_CATEGORIES.map((cat) => {
         const items = features.filter((f) => f.category === cat.id)
         if (items.length === 0) return null
@@ -57,7 +70,7 @@ export function ReportOptions({
                   style={{ height: 36 }}
                   onClick={() => onSetCategory(cat.id, false)}
                 >
-                  برداشتن همه
+                  لغو انتخاب‌های اختیاری
                 </button>
               </div>
             </div>
@@ -117,7 +130,7 @@ export function ReportOptions({
               style={{ height: 36 }}
               onClick={() => onSetDiag([])}
             >
-              برداشتن همه
+              لغو انتخاب‌های اختیاری
             </button>
           </div>
         </div>

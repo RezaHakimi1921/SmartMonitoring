@@ -17,7 +17,7 @@ function SummaryList({
   items,
 }: {
   title: string
-  tone: 'ok' | 'warn' | 'bad'
+  tone: 'ok' | 'warn' | 'bad' | 'nodata'
   items: SummaryItem[]
 }) {
   if (items.length === 0) return null
@@ -50,7 +50,11 @@ export function ExportSheet({
   summary,
 }: Props) {
   const hasSummary =
-    summary.bad.length + summary.warn.length + summary.ok.length > 0
+    summary.bad.length +
+      summary.warn.length +
+      summary.ok.length +
+      summary.nodata.length >
+    0
   return (
     <div className="export-sheet" dir="rtl">
       <header className="pdf-block export-head">
@@ -68,6 +72,11 @@ export function ExportSheet({
           <SummaryList title="❌ نیاز به اقدام" tone="bad" items={summary.bad} />
           <SummaryList title="⚠️ قابل بهبود" tone="warn" items={summary.warn} />
           <SummaryList title="✅ نقاط قوت" tone="ok" items={summary.ok} />
+          <SummaryList
+            title="ℹ️ داده در دسترس نیست"
+            tone="nodata"
+            items={summary.nodata}
+          />
         </section>
       ) : null}
 

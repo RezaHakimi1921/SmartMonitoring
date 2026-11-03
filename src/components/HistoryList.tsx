@@ -34,11 +34,21 @@ export function HistoryList({ items, onRemove }: Props) {
         return (
           <li key={h.id} className="history-item">
             <div className="history-main">
-              <strong>{place}</strong>
+              <strong>
+                {place}{' '}
+                <span className={`status-badge ${h.status === 'sent' ? 'sent' : ''}`}>
+                  {h.status === 'sent' ? 'ارسال‌شده' : 'پیش‌نویس'}
+                </span>
+              </strong>
               <span className="muted">
                 {h.typeTitle} · {range}
               </span>
-              <span className="muted history-when">{whenText(h.savedAt)}</span>
+              <span className="muted history-when">
+                {h.status === 'sent' && h.sentAt
+                  ? `ارسال: ${whenText(h.sentAt)}`
+                  : `آخرین تغییر: ${whenText(h.savedAt)}`}
+              </span>
+              {h.note ? <span className="history-note">یادداشت: {h.note}</span> : null}
             </div>
             <div className="actions">
               <Link

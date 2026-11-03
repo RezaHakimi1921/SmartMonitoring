@@ -1,6 +1,6 @@
 import type { ReportSection } from '../data/types'
 
-export type Tone = 'ok' | 'warn' | 'bad' | 'info'
+export type Tone = 'ok' | 'warn' | 'bad' | 'info' | 'nodata'
 
 export interface SummaryItem {
   section: string
@@ -11,9 +11,11 @@ export interface ReportSummary {
   bad: SummaryItem[]
   warn: SummaryItem[]
   ok: SummaryItem[]
+  /** داده در دسترس نیست؛ هرگز «خوب» حساب نمی‌شود */
+  nodata: SummaryItem[]
 }
 
-const RANK: Record<Tone, number> = { info: 0, ok: 1, warn: 2, bad: 3 }
+const RANK: Record<Tone, number> = { info: 0, ok: 1, nodata: 2, warn: 3, bad: 4 }
 
 /** بدترین وضعیت یک بخش؛ برای رنگ مرحله‌ها. */
 export function sectionTone(section: ReportSection): Tone {
@@ -33,6 +35,7 @@ export const TONE_TEXT: Record<Tone, string> = {
   warn: 'قابل بهبود',
   ok: 'وضعیت خوب',
   info: 'اطلاعات',
+  nodata: 'داده در دسترس نیست',
 }
 
 /** نکته‌های مهم یک بخش، به‌صورت جمله‌های آماده برای گفتن به مشتری. */
@@ -42,7 +45,7 @@ export function sectionTalkingPoints(section: ReportSection): SummaryItem[] {
     if (h.tone) items.push({ section: section.title, text: h.text })
   }
   for (const m of section.metrics) {
-    if (m.tone === 'bad' || m.tone === 'warn') {
+    if (m.tone === 'bad' || m.tone === 'warn' || m.tone === 'nodata') {
       items.push({ section: section.title, text: `${m.label}: ${m.value}` })
     }
   }
@@ -50,10 +53,10 @@ export function sectionTalkingPoints(section: ReportSection): SummaryItem[] {
 }
 
 export function summarize(sections: ReportSection[]): ReportSummary {
-  const out: ReportSummary = { bad: [], warn: [], ok: [] }
+  const out: ReportSummary = { bad: [], warn: [], ok: [], nodata: [] }
   // یک نکته که در چند بخش تکرار شده فقط یک بار در خلاصه می‌آید
   const seen = new Set<string>()
-  const add = (tone: 'bad' | 'warn' | 'ok', section: string, text: string) => {
+  const add = (tone: 'bad' | 'warn' | 'ok' | 'nodata', section: string, text: string) => {
     if (seen.has(text)) return
     seen.add(text)
     out[tone].push({ section, text })
@@ -63,7 +66,12 @@ export function summarize(sections: ReportSection[]): ReportSummary {
       if (h.tone) add(h.tone, s.title, h.text)
     }
     for (const m of s.metrics) {
-      if (m.tone === 'bad' || m.tone === 'warn' || m.tone === 'ok') {
+      if (
+        m.tone === 'bad' ||
+        m.tone === 'warn' ||
+        m.tone === 'ok' ||
+        m.tone === 'nodata'
+      ) {
         add(m.tone, s.title, `${m.label}: ${m.value}`)
       }
     }
@@ -78,8 +86,9 @@ export function buildCustomerMessage(opts: {
   rangeText: string
   reportDate: string
   summary: ReportSummary
+  note?: string
 }): string {
-  const { typeTitle, place, rangeText, reportDate, summary } = opts
+  const { typeTitle, place, rangeText, reportDate, summary, note } = opts
   const lines: string[] = [
     'سلام و وقت بخیر 🌸',
     `نتیجه «${typeTitle}» برای ${place}`,
@@ -96,6 +105,10 @@ export function buildCustomerMessage(opts: {
   block('✅ نقاط قوت', summary.ok, 5)
   block('⚠️ قابل بهبود', summary.warn, 8)
   block('❌ نیاز به اقدام', summary.bad, 8)
+  block('ℹ️ داده در دسترس نبود', summary.nodata, 8)
+  if (note?.trim()) {
+    lines.push('📝 توضیح کارشناس', note.trim(), '')
+  }
   lines.push('گزارش کامل (PDF) پیوست است.')
   return lines.join('\n')
 }

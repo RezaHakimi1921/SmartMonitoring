@@ -3,8 +3,8 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { formatJalaliLong, todayJalali } from '../lib/jalali'
 
 const NAV = [
-  { to: '/', label: 'شروع بررسی', end: true },
-  { to: '/history', label: 'گزارش‌های اخیر', end: false },
+  { to: '/', label: 'بررسی جدید', end: true },
+  { to: '/history', label: 'گزارش‌ها', end: false },
   { to: '/help', label: 'راهنما', end: false },
 ]
 
@@ -20,14 +20,14 @@ export function AppShell() {
     location.pathname.startsWith('/admin')
       ? 'تنظیمات انواع بررسی'
       : location.pathname.startsWith('/history')
-        ? 'گزارش‌های اخیر'
+        ? 'گزارش‌ها'
         : location.pathname.startsWith('/help')
           ? 'راهنمای استفاده'
           : location.pathname.startsWith('/setup')
         ? 'تنظیم بررسی'
         : location.pathname.startsWith('/report')
           ? 'گزارش بررسی'
-          : 'شروع بررسی'
+          : 'بررسی جدید'
 
   return (
     <div className="app-shell">
@@ -44,8 +44,8 @@ export function AppShell() {
         <div className="nav-brand">
           <div className="nav-mark">SX</div>
           <div>
-            <p className="nav-title">SmartX Monitoring</p>
-            <p className="nav-tag">پنل کنترل کیفیت</p>
+            <p className="nav-title">پنل بررسی مشتریان</p>
+            <p className="nav-tag">کنترل کیفیت اسمارت</p>
           </div>
         </div>
         {NAV.map((item) => (

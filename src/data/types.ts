@@ -52,7 +52,7 @@ export interface ReportMetric {
   label: string
   value: string
   note?: string
-  tone?: 'ok' | 'warn' | 'bad' | 'info'
+  tone?: 'ok' | 'warn' | 'bad' | 'info' | 'nodata'
 }
 
 export interface ReportSection {

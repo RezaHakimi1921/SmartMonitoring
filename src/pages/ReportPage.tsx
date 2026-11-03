@@ -9,7 +9,7 @@ import { BrandSearch } from '../components/BrandSearch'
 import { ExportSheet } from '../components/ExportSheet'
 import { JalaliRangePicker } from '../components/JalaliRangePicker'
 import { ReportOptions } from '../components/ReportOptions'
-import { DIAG_ITEMS } from '../data/diagCatalog'
+import { DEFAULT_DIAG_IDS, DIAG_ITEMS } from '../data/diagCatalog'
 import { buildMockSections } from '../data/mockReport'
 import {
   isRangeValid,
@@ -34,7 +34,13 @@ import {
   type SummaryItem,
   type Tone,
 } from '../lib/reportSummary'
-import { saveHistoryEntry } from '../lib/history'
+import { SendStep } from '../components/SendStep'
+import {
+  getHistoryEntry,
+  historyId,
+  saveHistoryEntry,
+  updateHistoryEntry,
+} from '../lib/history'
 import { loadFeatures, loadReviewTypes } from '../lib/storage'
 
 type Step =
@@ -49,7 +55,7 @@ function ItemList({
   items,
 }: {
   title: string
-  tone: 'ok' | 'warn' | 'bad'
+  tone: 'ok' | 'warn' | 'bad' | 'nodata'
   items: SummaryItem[]
 }) {
   if (items.length === 0) return null
@@ -81,6 +87,9 @@ export function ReportPage() {
   const [step, setStep] = useState(0)
   const [editing, setEditing] = useState(false)
   const [showOptions, setShowOptions] = useState(false)
+  const [note, setNote] = useState('')
+  const [sentAt, setSentAt] = useState<string | undefined>()
+  const [onlyAttention, setOnlyAttention] = useState(false)
 
   const type = loadReviewTypes().find((t) => t.id === typeId)
   const catalog = loadFeatures()
@@ -136,6 +145,8 @@ export function ReportPage() {
   const steps: Step[] = useMemo(() => {
     const list: Step[] = [{ key: 'summary', title: 'خلاصه' }]
     for (const section of sections) {
+      const t = sectionTone(section)
+      if (onlyAttention && t !== 'bad' && t !== 'warn' && t !== 'nodata') continue
       list.push({
         key: 'section',
         title: section.title,
@@ -146,7 +157,7 @@ export function ReportPage() {
     if (diagTitles.length > 0) list.push({ key: 'diag', title: 'نکات پیگیری' })
     list.push({ key: 'send', title: 'ارسال برای مشتری' })
     return list
-  }, [sections, diagTitles.length])
+  }, [sections, diagTitles.length, onlyAttention])
 
   const safeStep = Math.min(step, steps.length - 1)
   const current = steps[safeStep]
@@ -164,6 +175,13 @@ export function ReportPage() {
     })
   }, [type, typeId, brandName, branchName, branchId, queryString])
 
+  const entryId = historyId(typeId, branchId)
+  useEffect(() => {
+    const entry = getHistoryEntry(entryId)
+    setNote(entry?.note ?? '')
+    setSentAt(entry?.status === 'sent' ? entry.sentAt : undefined)
+  }, [entryId])
+
   useEffect(() => {
     topRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
     document
@@ -179,8 +197,9 @@ export function ReportPage() {
         rangeText,
         reportDate,
         summary,
+        note,
       }),
-    [type, place, rangeText, reportDate, summary],
+    [type, place, rangeText, reportDate, summary, note],
   )
 
   const flash = (text: string, ms = 2400) => {
@@ -288,12 +307,21 @@ export function ReportPage() {
     }
   }
 
-  const copyMessage = async () => {
-    try {
-      await navigator.clipboard.writeText(message)
-      flash('متن پیام کپی شد')
-    } catch {
-      flash('کپی انجام نشد؛ متن را دستی انتخاب کنید.', 3200)
+  const changeNote = (value: string) => {
+    setNote(value)
+    updateHistoryEntry(entryId, { note: value })
+  }
+
+  const toggleSent = () => {
+    if (sentAt) {
+      updateHistoryEntry(entryId, { status: 'draft', sentAt: undefined })
+      setSentAt(undefined)
+      flash('ثبت ارسال لغو شد')
+    } else {
+      const now = new Date().toISOString()
+      updateHistoryEntry(entryId, { status: 'sent', sentAt: now })
+      setSentAt(now)
+      flash('به‌عنوان ارسال‌شده ثبت شد')
     }
   }
 
@@ -407,6 +435,13 @@ export function ReportPage() {
                   onSetCategory={setCategory}
                   onToggleDiag={toggleDiag}
                   onSetDiag={setDiag}
+                  onReset={() => {
+                    const defaults = Object.entries(type.features)
+                      .filter(([, m]) => m === 'required' || m === 'defaultOn')
+                      .map(([id]) => id as FeatureId)
+                    setFeatures(defaults)
+                    setDiag(DEFAULT_DIAG_IDS)
+                  }}
                 />
               </div>
             ) : null}
@@ -433,6 +468,17 @@ export function ReportPage() {
             )
           })}
         </ol>
+        <label className="attention-toggle">
+          <input
+            type="checkbox"
+            checked={onlyAttention}
+            onChange={(e) => {
+              setOnlyAttention(e.target.checked)
+              setStep(0)
+            }}
+          />
+          فقط بخش‌های نیازمند توجه
+        </label>
         <p className="muted journey-count">
           مرحله {toFaDigits(safeStep + 1)} از {toFaDigits(steps.length)}
         </p>
@@ -463,6 +509,11 @@ export function ReportPage() {
             <ItemList title="نیاز به اقدام" tone="bad" items={summary.bad} />
             <ItemList title="قابل بهبود" tone="warn" items={summary.warn} />
             <ItemList title="نقاط قوت" tone="ok" items={summary.ok} />
+            <ItemList
+              title="داده در دسترس نیست"
+              tone="nodata"
+              items={summary.nodata}
+            />
             {sections.length === 0 ? (
               <p className="muted">هیچ بخشی برای گزارش انتخاب نشده است.</p>
             ) : null}
@@ -538,39 +589,17 @@ export function ReportPage() {
         ) : null}
 
         {current.key === 'send' ? (
-          <>
-            <h3 style={{ margin: '0 0 4px' }}>ارسال برای مشتری</h3>
-            <p className="muted" style={{ margin: '0 0 14px' }}>
-              ۱) فایل PDF را دانلود کنید. ۲) متن پیام را کپی کنید. ۳) هر دو را برای
-              مشتری بفرستید.
-            </p>
-            <div className="send-actions">
-              <button
-                type="button"
-                className="btn btn-primary btn-large"
-                disabled={busy || customIncomplete}
-                onClick={() => void downloadPdf()}
-              >
-                {busy ? 'در حال ساخت…' : 'دانلود PDF گزارش'}
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary btn-large"
-                onClick={() => void copyMessage()}
-              >
-                کپی متن پیام
-              </button>
-            </div>
-            <div className="field-label" style={{ marginTop: 16 }}>
-              پیش‌نمایش متن پیام
-            </div>
-            <pre className="message-preview">{message}</pre>
-            <div className="actions" style={{ marginTop: 12 }}>
-              <Link to="/" className="btn btn-ghost">
-                شروع بررسی جدید
-              </Link>
-            </div>
-          </>
+          <SendStep
+            generated={message}
+            note={note}
+            onNote={changeNote}
+            sentAt={sentAt}
+            onToggleSent={toggleSent}
+            busy={busy}
+            pdfDisabled={customIncomplete}
+            onDownload={() => void downloadPdf()}
+            onFlash={flash}
+          />
         ) : null}
       </section>
 

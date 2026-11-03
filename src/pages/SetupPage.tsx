@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { BrandSearch } from '../components/BrandSearch'
 import { JalaliRangePicker } from '../components/JalaliRangePicker'
 import { ReportOptions } from '../components/ReportOptions'
-import { DIAG_ITEMS } from '../data/diagCatalog'
+import { DEFAULT_DIAG_IDS } from '../data/diagCatalog'
 import {
   isRangeValid,
   PERIOD_OPTIONS,
@@ -33,9 +33,7 @@ export function SetupPage() {
   const [selected, setSelected] = useState<
     { id: FeatureId; mode: FeatureMode | null; checked: boolean }[]
   >([])
-  const [diagSelected, setDiagSelected] = useState<number[]>(() =>
-    DIAG_ITEMS.slice(0, 8).map((d) => d.id),
-  )
+  const [diagSelected, setDiagSelected] = useState<number[]>(DEFAULT_DIAG_IDS)
 
   useEffect(() => {
     const current = loadReviewTypes().find((t) => t.id === typeId)
@@ -220,6 +218,10 @@ export function SetupPage() {
             onSetCategory={setCategory}
             onToggleDiag={toggleDiag}
             onSetDiag={setDiagSelected}
+            onReset={() => {
+              setSelected(selectionForType(type, loadFeatures()))
+              setDiagSelected(DEFAULT_DIAG_IDS)
+            }}
           />
         ) : null}
       </section>
