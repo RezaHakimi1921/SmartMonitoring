@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { formatJalaliLong, todayJalali } from '../lib/jalali'
 
 const NAV = [
   { to: '/', label: 'شروع بررسی', end: true },
-  { to: '/admin', label: 'تعریف انواع و ویژگی‌ها', end: false },
+  { to: '/admin', label: 'تنظیمات (مدیر)', end: false },
 ]
 
 export function AppShell() {
@@ -16,12 +17,12 @@ export function AppShell() {
 
   const title =
     location.pathname.startsWith('/admin')
-      ? 'پیکربندی'
+      ? 'تنظیمات انواع بررسی'
       : location.pathname.startsWith('/setup')
-        ? 'آماده‌سازی بررسی'
+        ? 'تنظیم بررسی'
         : location.pathname.startsWith('/report')
           ? 'گزارش بررسی'
-          : 'مانیتورینگ باشگاه'
+          : 'شروع بررسی'
 
   return (
     <div className="app-shell">
@@ -55,9 +56,7 @@ export function AppShell() {
           </NavLink>
         ))}
         <div className="nav-spacer" />
-        <p className="nav-footnote">
-          الهام بصری از Isometric depth و فضای ThreeUI · توکن‌های SmartX
-        </p>
+        <p className="nav-footnote">پنل کنترل کیفیت اسمارت</p>
       </aside>
 
       <div className="main">
@@ -73,7 +72,7 @@ export function AppShell() {
             </button>
             <h1>{title}</h1>
           </div>
-          <span className="appbar-meta">پنل مانیتورینگ باشگاه</span>
+          <span className="appbar-meta">{formatJalaliLong(todayJalali())}</span>
         </header>
 
         <main className="content">

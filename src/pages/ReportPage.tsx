@@ -6,6 +6,7 @@ import { buildMockSections } from '../data/mockReport'
 import { periodLabel, type PeriodKey } from '../data/periods'
 import type { FeatureId } from '../data/types'
 import { exportElementAsPdf, exportElementAsPng } from '../lib/exportReport'
+import { formatJalaliLong, toFaDigits, todayJalali } from '../lib/jalali'
 import { loadReviewTypes } from '../lib/storage'
 
 export function ReportPage() {
@@ -22,6 +23,7 @@ export function ReportPage() {
   const fromDate = params.get('from') ?? undefined
   const toDate = params.get('to') ?? undefined
   const rangeText = periodLabel(period, fromDate, toDate)
+  const reportDate = formatJalaliLong(todayJalali())
 
   const featureIds = useMemo(() => {
     const raw = params.get('features')
@@ -54,10 +56,10 @@ export function ReportPage() {
     try {
       if (kind === 'png') await exportElementAsPng(exportRef.current, fileBase)
       else await exportElementAsPdf(exportRef.current, fileBase)
-      setToast(kind === 'png' ? 'عکس ذخیره شد' : 'PDF ذخیره شد')
+      setToast(kind === 'png' ? 'عکس گزارش دانلود شد' : 'فایل PDF گزارش دانلود شد')
       window.setTimeout(() => setToast(''), 2200)
     } catch (e) {
-      setToast(e instanceof Error ? e.message : 'خروجی ناموفق بود')
+      setToast(e instanceof Error ? e.message : 'ساخت فایل ناموفق بود. دوباره تلاش کنید.')
       window.setTimeout(() => setToast(''), 2800)
     } finally {
       setBusy(null)
@@ -67,9 +69,9 @@ export function ReportPage() {
   if (!type) {
     return (
       <div className="panel">
-        <p>گزارش نامعتبر است.</p>
+        <p>این گزارش پیدا نشد. لطفاً از ابتدا شروع کنید.</p>
         <Link className="btn btn-secondary" to="/">
-          بازگشت
+          بازگشت به صفحه اول
         </Link>
       </div>
     )
@@ -82,31 +84,36 @@ export function ReportPage() {
 
   return (
     <>
-      <div className="actions no-export" style={{ justifyContent: 'space-between' }}>
-        <div className="actions">
-          <span className="chip ok">بعد از تمدید ✅ (نمونه)</span>
-          <span className="chip bad">تیک اتمام حجت ندارد ❌</span>
-          <span className="chip">بازه: {rangeText}</span>
-        </div>
-        <div className="actions">
-          <button
-            type="button"
-            className="btn btn-secondary"
-            disabled={!!busy}
-            onClick={() => void runExport('png')}
-          >
-            {busy === 'png' ? 'در حال ساخت…' : 'خروجی عکس'}
-          </button>
+      <div className="report-notice no-export">
+        داده‌های این گزارش فعلاً <strong>نمونه</strong> است و هنوز به سیستم‌های
+        اصلی وصل نشده.
+      </div>
+
+      <div className="report-actions no-export">
+        <div className="report-actions-main">
           <button
             type="button"
             className="btn btn-primary"
             disabled={!!busy}
             onClick={() => void runExport('pdf')}
           >
-            {busy === 'pdf' ? 'در حال ساخت…' : 'خروجی PDF'}
+            {busy === 'pdf' ? 'در حال ساخت…' : 'دانلود PDF'}
           </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={!!busy}
+            onClick={() => void runExport('png')}
+          >
+            {busy === 'png' ? 'در حال ساخت…' : 'دانلود عکس'}
+          </button>
+        </div>
+        <div className="actions">
           <Link to={`/setup/${type.id}`} className="btn btn-ghost">
-            ویرایش
+            تغییر مجموعه یا بازه
+          </Link>
+          <Link to="/" className="btn btn-ghost">
+            بررسی جدید
           </Link>
         </div>
       </div>
@@ -119,13 +126,14 @@ export function ReportPage() {
             </div>
             <h2 style={{ marginTop: 8 }}>{place}</h2>
             <p>بازه بررسی: {rangeText}</p>
+            <p>تاریخ گزارش: {reportDate}</p>
           </div>
           <div className="actions" style={{ justifyContent: 'flex-end' }}>
             <span
               className="chip"
               style={{ background: 'rgba(255,255,255,0.14)', color: '#ecfeff' }}
             >
-              {sections.length} بخش · {diagTitles.length} نکته
+              {toFaDigits(sections.length)} بخش · {toFaDigits(diagTitles.length)} نکته
             </span>
           </div>
         </section>
@@ -199,6 +207,7 @@ export function ReportPage() {
             brandName={brandName}
             branchName={branchName}
             periodLabel={rangeText}
+            reportDate={reportDate}
             sections={sections}
             diagTitles={diagTitles}
           />

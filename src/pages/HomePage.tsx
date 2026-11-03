@@ -1,56 +1,55 @@
 import { Link } from 'react-router-dom'
-import { IsoCubeIcon, IsoStackFigure } from '../components/IsoDecor'
+import { IsoCubeIcon } from '../components/IsoDecor'
 import { loadReviewTypes } from '../lib/storage'
+import { formatJalaliLong, todayJalali } from '../lib/jalali'
 
 const TONES = ['teal', 'sky', 'amber', 'rose'] as const
+
+const STEPS = [
+  { n: '۱', title: 'نوع بررسی', text: 'یکی از کارت‌های زیر را بزنید' },
+  { n: '۲', title: 'مجموعه و بازه', text: 'مجموعه را جستجو و بازه را انتخاب کنید' },
+  { n: '۳', title: 'گزارش آماده', text: 'عکس یا PDF بگیرید و برای مشتری بفرستید' },
+]
 
 export function HomePage() {
   const types = loadReviewTypes()
 
   return (
-    <>
-      <section className="hero">
-        <div>
-          <h2>گزارش‌های پراکنده، یک نگاه واحد</h2>
-          <p>
-            نوع بررسی را انتخاب کن، شعبه را مشخص کن، ویژگی‌ها را کم و زیاد کن.
-            خروجی یک‌صفحه‌ای با PDF و عکس برای مشتری آماده می‌شود — بدون پرش بین
-            اینسایت، کلاب و ارزیابی.
-          </p>
-        </div>
-        <IsoStackFigure className="hero-art" />
-      </section>
-
-      <section className="page-intro">
-        <h2>انتخاب نوع بررسی</h2>
-        <p>
-          هر کارت یک سناریوی کنترل است. عمق و فشار دکمه‌ها از زبان بصری Isometric
-          گرفته شده؛ بعداً به Design System واقعی SmartX وصل می‌شود.
+    <div className="flow">
+      <header className="flow-head">
+        <p className="muted">امروز: {formatJalaliLong(todayJalali())}</p>
+        <h2>کدام بررسی را انجام می‌دهید؟</h2>
+        <p className="muted">
+          یک نوع بررسی انتخاب کنید. بقیه مراحل را قدم‌به‌قدم راهنمایی می‌کنیم.
         </p>
-      </section>
+      </header>
+
+      <ol className="home-steps" aria-label="مراحل کار">
+        {STEPS.map((s) => (
+          <li key={s.n}>
+            <span className="step-num">{s.n}</span>
+            <div>
+              <strong>{s.title}</strong>
+              <span className="muted">{s.text}</span>
+            </div>
+          </li>
+        ))}
+      </ol>
 
       <div className="grid-types">
         {types.map((type, index) => (
-          <Link
-            key={type.id}
-            to={`/setup/${type.id}`}
-            className="iso-card"
-          >
+          <Link key={type.id} to={`/setup/${type.id}`} className="iso-card">
             <div className="iso-card-top">
-              <div className="card-kicker">سناریوی کنترل</div>
+              <h2>{type.title}</h2>
               <IsoCubeIcon tone={TONES[index % TONES.length]} />
             </div>
-            <h2>{type.title}</h2>
             <p className="muted">{type.description}</p>
             <div className="card-footer">
-              <span className="chip">
-                {Object.keys(type.features).length} ویژگی متصل
-              </span>
-              <span className="chip">شروع ←</span>
+              <span className="chip">انتخاب و ادامه ←</span>
             </div>
           </Link>
         ))}
       </div>
-    </>
+    </div>
   )
 }

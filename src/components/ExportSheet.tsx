@@ -5,6 +5,7 @@ type Props = {
   brandName: string
   branchName: string
   periodLabel: string
+  reportDate: string
   sections: ReportSection[]
   diagTitles: string[]
 }
@@ -15,6 +16,7 @@ export function ExportSheet({
   brandName,
   branchName,
   periodLabel,
+  reportDate,
   sections,
   diagTitles,
 }: Props) {
@@ -28,6 +30,7 @@ export function ExportSheet({
             {branchName && branchName !== brandName ? ` — ${branchName}` : ''}
           </h1>
           <p>بازه بررسی: {periodLabel}</p>
+          <p>تاریخ گزارش: {reportDate}</p>
         </div>
         <div className="export-flags">
           <span>بعد از تمدید ✅</span>
