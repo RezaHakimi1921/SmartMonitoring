@@ -36,7 +36,7 @@ export function AdminPage() {
 
   const persist = () => {
     saveReviewTypes(types)
-    setToast('ذخیره شد (localStorage)')
+    setToast('تنظیمات ذخیره شد')
     window.setTimeout(() => setToast(''), 2000)
   }
 
@@ -52,10 +52,12 @@ export function AdminPage() {
   return (
     <>
       <section className="page-intro">
-        <h2 style={{ margin: 0, fontSize: 22 }}>انواع و ویژگی‌ها</h2>
+        <h2 style={{ margin: 0, fontSize: 22 }}>تنظیمات انواع بررسی</h2>
         <p>
-          نوع بررسی را تعریف کن، ویژگی را وصل کن با حالت اجباری / روشن / خاموش.
-          اپراتور موقع اجرا تیک‌ها را می‌بیند و می‌تواند بردارد (جز اجباری).
+          این صفحه ویژه مدیر است. برای هر نوع بررسی مشخص کنید کدام بخش‌ها در
+          گزارش باشند: «اجباری» (کاربر نمی‌تواند بردارد)، «پیش‌فرض روشن» یا
+          «پیش‌فرض خاموش» (کاربر می‌تواند تغییر دهد). بعد از تغییر، «ذخیره
+          پیکربندی» را بزنید.
         </p>
       </section>
 

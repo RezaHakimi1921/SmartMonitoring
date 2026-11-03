@@ -1075,13 +1075,17 @@ a {
     margin: 0;
   }
 
+  /* راست‌به‌چپ: منو از لبه راست صفحه می‌آید، پس بسته بودن یعنی بیرون راست */
   [dir="rtl"] .nav {
     inset: 12px 12px 12px auto;
-    transform: translateX(-110%);
+    transform: translateX(115%);
+    visibility: hidden;
   }
 
-  .nav.open {
+  .nav.open,
+  [dir="rtl"] .nav.open {
     transform: translateX(0);
+    visibility: visible;
   }
 
   .nav-backdrop {
@@ -1110,7 +1114,7 @@ a {
 
   .mobile-tabbar {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 8px;
     position: fixed;
     bottom: 12px;
@@ -1747,4 +1751,100 @@ a {
 }
 .journey {
   max-width: 100%;
+}
+
+
+/* ===== فوکوس کیبورد (دسترسی‌پذیری) ===== */
+a:focus-visible,
+button:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+.iso-card:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ===== منو، تاریخچه، راهنما ===== */
+.nav-link-quiet {
+  font-size: 13px;
+  opacity: 0.85;
+}
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-12);
+}
+.history-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-glass-strong);
+  border: 1px solid var(--outline-variant);
+  box-shadow: var(--shadow-soft);
+}
+.history-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.history-when {
+  font-size: 12px;
+}
+.recent {
+  display: grid;
+  gap: var(--space-12);
+}
+.home-help {
+  margin: 0;
+  text-align: center;
+}
+.home-help a {
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: underline;
+}
+.empty-state {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  text-align: center;
+  padding: 36px 16px;
+  border-radius: var(--radius-lg);
+  border: 2px dashed var(--outline-variant);
+  background: rgba(255, 255, 255, 0.5);
+}
+.empty-state p {
+  margin: 0;
+}
+.help-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-12);
+}
+.faq {
+  display: grid;
+  gap: 6px;
+}
+.faq details {
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.7);
+}
+.faq summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.faq p {
+  margin: 8px 0 0;
+  line-height: 1.9;
+  color: var(--on-surface-variant);
 }

@@ -4,7 +4,8 @@ import { formatJalaliLong, todayJalali } from '../lib/jalali'
 
 const NAV = [
   { to: '/', label: 'شروع بررسی', end: true },
-  { to: '/admin', label: 'تنظیمات (مدیر)', end: false },
+  { to: '/history', label: 'گزارش‌های اخیر', end: false },
+  { to: '/help', label: 'راهنما', end: false },
 ]
 
 export function AppShell() {
@@ -18,7 +19,11 @@ export function AppShell() {
   const title =
     location.pathname.startsWith('/admin')
       ? 'تنظیمات انواع بررسی'
-      : location.pathname.startsWith('/setup')
+      : location.pathname.startsWith('/history')
+        ? 'گزارش‌های اخیر'
+        : location.pathname.startsWith('/help')
+          ? 'راهنمای استفاده'
+          : location.pathname.startsWith('/setup')
         ? 'تنظیم بررسی'
         : location.pathname.startsWith('/report')
           ? 'گزارش بررسی'
@@ -56,6 +61,14 @@ export function AppShell() {
           </NavLink>
         ))}
         <div className="nav-spacer" />
+        <NavLink
+          to="/admin"
+          className={({ isActive }) =>
+            isActive ? 'nav-link nav-link-quiet active' : 'nav-link nav-link-quiet'
+          }
+        >
+          تنظیمات (ویژه مدیر)
+        </NavLink>
         <p className="nav-footnote">پنل کنترل کیفیت اسمارت</p>
       </aside>
 

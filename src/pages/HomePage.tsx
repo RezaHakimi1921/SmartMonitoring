@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
 import { IsoCubeIcon } from '../components/IsoDecor'
+import { HistoryList } from '../components/HistoryList'
+import { loadHistory } from '../lib/history'
 import { loadReviewTypes } from '../lib/storage'
 import { formatJalaliLong, todayJalali } from '../lib/jalali'
 
@@ -13,6 +15,7 @@ const STEPS = [
 
 export function HomePage() {
   const types = loadReviewTypes()
+  const recent = loadHistory().slice(0, 3)
 
   return (
     <div className="flow">
@@ -50,6 +53,22 @@ export function HomePage() {
           </Link>
         ))}
       </div>
+
+      {recent.length > 0 ? (
+        <section className="recent">
+          <div className="section-head">
+            <h3 style={{ margin: 0 }}>ادامه گزارش‌های اخیر</h3>
+            <Link to="/history" className="btn btn-ghost">
+              همه گزارش‌ها
+            </Link>
+          </div>
+          <HistoryList items={recent} />
+        </section>
+      ) : null}
+
+      <p className="muted home-help">
+        برای اولین بار است؟ <Link to="/help">راهنمای کوتاه</Link> را بخوانید.
+      </p>
     </div>
   )
 }

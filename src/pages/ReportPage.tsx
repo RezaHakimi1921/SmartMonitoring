@@ -34,6 +34,7 @@ import {
   type SummaryItem,
   type Tone,
 } from '../lib/reportSummary'
+import { saveHistoryEntry } from '../lib/history'
 import { loadFeatures, loadReviewTypes } from '../lib/storage'
 
 type Step =
@@ -149,6 +150,19 @@ export function ReportPage() {
 
   const safeStep = Math.min(step, steps.length - 1)
   const current = steps[safeStep]
+
+  const queryString = params.toString()
+  useEffect(() => {
+    if (!type) return
+    saveHistoryEntry({
+      typeId,
+      typeTitle: type.title,
+      brandName,
+      branchName,
+      branchId,
+      query: queryString,
+    })
+  }, [type, typeId, brandName, branchName, branchId, queryString])
 
   useEffect(() => {
     topRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
