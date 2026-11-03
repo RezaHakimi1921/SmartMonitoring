@@ -1,0 +1,59 @@
+:root {
+  --font-primary: "Vazirmatn", "IRANYekanX", "IRANYekan", Tahoma, "Segoe UI", sans-serif;
+
+  --primary: #0f766e;
+  --primary-strong: #0d9488;
+  --primary-soft: rgba(15, 118, 110, 0.14);
+  --on-primary: #ffffff;
+  --primary-container: #ccfbf1;
+  --on-primary-container: #042f2e;
+
+  --secondary: #475569;
+  --secondary-container: #e2e8f0;
+  --on-secondary-container: #0f172a;
+
+  --surface: #f8fafc;
+  --surface-dim: #e8eef5;
+  --surface-glass: rgba(255, 255, 255, 0.62);
+  --surface-glass-strong: rgba(255, 255, 255, 0.82);
+  --surface-ink: #0b1220;
+  --on-surface: #0f172a;
+  --on-surface-variant: #64748b;
+  --outline: #94a3b8;
+  --outline-variant: rgba(148, 163, 184, 0.35);
+
+  --error: #dc2626;
+  --error-container: #fee2e2;
+  --on-error-container: #7f1d1d;
+  --success: #059669;
+  --success-container: #d1fae5;
+  --on-success-container: #064e3b;
+  --warning: #d97706;
+  --warning-container: #ffedd5;
+  --on-warning-container: #7c2d12;
+  --info: #0284c7;
+  --info-container: #e0f2fe;
+
+  --iso-edge: #0f172a;
+  --iso-accent: #2dd4bf;
+  --iso-glow: rgba(45, 212, 191, 0.35);
+  --grid-line: rgba(15, 23, 42, 0.06);
+
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 28px;
+
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-40: 40px;
+
+  --nav-width: 272px;
+  --shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --shadow-lift: 0 18px 40px rgba(15, 23, 42, 0.14);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
