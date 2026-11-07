@@ -1,5 +1,5 @@
 import { FEATURE_CATEGORIES } from '../data/catalog'
-import { DIAG_ITEMS } from '../data/diagCatalog'
+import { DIAG_CATEGORIES, DIAG_ITEMS } from '../data/diagCatalog'
 import type { Feature, FeatureId } from '../data/types'
 import { toFaDigits } from '../lib/jalali'
 
@@ -13,11 +13,12 @@ type Props = {
   onSetCategory: (categoryId: string, checked: boolean) => void
   onToggleDiag: (id: number) => void
   onSetDiag: (ids: number[]) => void
+  onSetDiagCategory?: (categoryId: string, checked: boolean) => void
   /** بازگشت به انتخاب‌های پیشنهادی همین نوع بررسی */
   onReset?: () => void
 }
 
-/** فهرست انتخاب بخش‌ها و نکات پیگیری — هم در تنظیم بررسی و هم در صفحه گزارش. */
+/** فهرست انتخاب بخش‌ها و نکات پیگیری — دسته‌بندی + انتخاب همه. */
 export function ReportOptions({
   features,
   checked,
@@ -27,8 +28,25 @@ export function ReportOptions({
   onSetCategory,
   onToggleDiag,
   onSetDiag,
+  onSetDiagCategory,
   onReset,
 }: Props) {
+  const setDiagCat = (categoryId: string, on: boolean) => {
+    if (onSetDiagCategory) {
+      onSetDiagCategory(categoryId, on)
+      return
+    }
+    const ids = DIAG_ITEMS.filter((d) => d.category === categoryId).map(
+      (d) => d.id,
+    )
+    if (on) {
+      onSetDiag(Array.from(new Set([...diag, ...ids])))
+    } else {
+      const drop = new Set(ids)
+      onSetDiag(diag.filter((id) => !drop.has(id)))
+    }
+  }
+
   return (
     <div className="category-stack">
       {onReset ? (
@@ -41,12 +59,16 @@ export function ReportOptions({
           </button>
         </div>
       ) : null}
+
+      <h3 className="panel-title" style={{ marginTop: 0 }}>
+        بخش‌های گزارش
+      </h3>
       {FEATURE_CATEGORIES.map((cat) => {
         const items = features.filter((f) => f.category === cat.id)
         if (items.length === 0) return null
         const onCount = items.filter((i) => checked.has(i.id)).length
         return (
-          <section key={cat.id} className="category-block">
+          <section key={cat.id} className="category-block glass-card">
             <div className="category-head">
               <div>
                 <h4>{cat.title}</h4>
@@ -70,7 +92,7 @@ export function ReportOptions({
                   style={{ height: 36 }}
                   onClick={() => onSetCategory(cat.id, false)}
                 >
-                  لغو انتخاب‌های اختیاری
+                  لغو اختیاری‌ها
                 </button>
               </div>
             </div>
@@ -104,55 +126,61 @@ export function ReportOptions({
         )
       })}
 
-      <section className="category-block">
-        <div className="category-head">
-          <div>
-            <h4>نکات قابل پیگیری</h4>
-            <p className="muted">
-              مواردی که در پایان گزارش برای پیگیری فهرست می‌شوند
-            </p>
-          </div>
-          <div className="actions">
-            <span className="chip">
-              {toFaDigits(diag.length)} از {toFaDigits(DIAG_ITEMS.length)}
-            </span>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              style={{ height: 36 }}
-              onClick={() => onSetDiag(DIAG_ITEMS.map((d) => d.id))}
-            >
-              انتخاب همه
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              style={{ height: 36 }}
-              onClick={() => onSetDiag([])}
-            >
-              لغو انتخاب‌های اختیاری
-            </button>
-          </div>
-        </div>
-        <div className="feature-list">
-          {DIAG_ITEMS.map((d) => (
-            <label
-              key={d.id}
-              className={`feature-item${diag.includes(d.id) ? ' is-on' : ''}`}
-            >
-              <input
-                type="checkbox"
-                checked={diag.includes(d.id)}
-                onChange={() => onToggleDiag(d.id)}
-              />
-              <span>
-                <strong>{d.title}</strong>
-                <span className="muted">{d.hint}</span>
-              </span>
-            </label>
-          ))}
-        </div>
-      </section>
+      <h3 className="panel-title">نکات قابل پیگیری</h3>
+      {DIAG_CATEGORIES.map((cat) => {
+        const items = DIAG_ITEMS.filter((d) => d.category === cat.id)
+        if (items.length === 0) return null
+        const onCount = items.filter((d) => diag.includes(d.id)).length
+        return (
+          <section key={cat.id} className="category-block glass-card">
+            <div className="category-head">
+              <div>
+                <h4>{cat.title}</h4>
+                <p className="muted">{cat.description}</p>
+              </div>
+              <div className="actions">
+                <span className="chip">
+                  {toFaDigits(onCount)} از {toFaDigits(items.length)}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ height: 36 }}
+                  onClick={() => setDiagCat(cat.id, true)}
+                >
+                  انتخاب همه
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ height: 36 }}
+                  onClick={() => setDiagCat(cat.id, false)}
+                >
+                  لغو انتخاب
+                </button>
+              </div>
+            </div>
+            <div className="feature-list">
+              {items.map((d) => (
+                <label
+                  key={d.id}
+                  className={`feature-item${diag.includes(d.id) ? ' is-on' : ''}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={diag.includes(d.id)}
+                    onChange={() => onToggleDiag(d.id)}
+                  />
+                  <span>
+                    <strong>{d.title}</strong>
+                    <span className="muted">{d.hint}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </section>
+        )
+      })}
     </div>
   )
 }

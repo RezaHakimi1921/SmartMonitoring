@@ -1,0 +1,10 @@
+{
+  "description": "ابزاری برای سفارشی‌سازی ظاهر و رابط کاربری داشبورد که به کاربران امکان می‌دهد تجربه کاری خود را متناسب با نیازشان تنظیم کنند.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

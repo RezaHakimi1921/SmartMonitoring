@@ -56,14 +56,25 @@ export function summarize(sections: ReportSection[]): ReportSummary {
   const out: ReportSummary = { bad: [], warn: [], ok: [], nodata: [] }
   // یک نکته که در چند بخش تکرار شده فقط یک بار در خلاصه می‌آید
   const seen = new Set<string>()
-  const add = (tone: 'bad' | 'warn' | 'ok' | 'nodata', section: string, text: string) => {
+  const add = (
+    tone: 'bad' | 'warn' | 'ok' | 'nodata',
+    section: string,
+    text: string,
+  ) => {
     if (seen.has(text)) return
     seen.add(text)
     out[tone].push({ section, text })
   }
   for (const s of sections) {
     for (const h of s.hints ?? []) {
-      if (h.tone) add(h.tone, s.title, h.text)
+      if (
+        h.tone === 'bad' ||
+        h.tone === 'warn' ||
+        h.tone === 'ok' ||
+        h.tone === 'nodata'
+      ) {
+        add(h.tone, s.title, h.text)
+      }
     }
     for (const m of s.metrics) {
       if (
@@ -72,6 +83,17 @@ export function summarize(sections: ReportSection[]): ReportSummary {
         m.tone === 'ok' ||
         m.tone === 'nodata'
       ) {
+        // صفر مطلق / خط تیره را به‌عنوان نقطهٔ قوت گزارش نکن
+        const v = (m.value || '').trim()
+        if (
+          v === '—' ||
+          v === '۰' ||
+          v === '۰.۰٪' ||
+          v === '0' ||
+          v === '0.0%'
+        ) {
+          if (m.tone === 'ok') continue
+        }
         add(m.tone, s.title, `${m.label}: ${m.value}`)
       }
     }

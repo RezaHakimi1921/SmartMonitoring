@@ -1,5 +1,8 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { IsoCubeIcon } from '../components/IsoDecor'
+import type { ReviewType } from '../data/types'
+import { useAuth } from '../lib/authContext'
 import { loadHistory } from '../lib/history'
 import { loadReviewTypes } from '../lib/storage'
 
@@ -12,7 +15,11 @@ const STEPS = [
 ]
 
 export function HomePage() {
-  const types = loadReviewTypes()
+  const { configReady } = useAuth()
+  const [types, setTypes] = useState<ReviewType[]>(() => loadReviewTypes())
+  useEffect(() => {
+    setTypes(loadReviewTypes())
+  }, [configReady])
   const history = loadHistory()
   const last = history[0]
   const isNewUser = history.length === 0
@@ -34,7 +41,7 @@ export function HomePage() {
   return (
     <div className="flow">
       {last ? (
-        <section className="continue-card" aria-label="ادامه آخرین گزارش">
+        <section className="continue-card glass-card" aria-label="ادامه آخرین گزارش">
           <div>
             <div className="card-kicker">ادامه آخرین گزارش</div>
             <strong>
@@ -53,7 +60,8 @@ export function HomePage() {
         </section>
       ) : null}
 
-      <header className="flow-head">
+      <header className="flow-head section-heading" style={{ display: 'block' }}>
+        <span className="eyebrow">فضای کاری دیدبان</span>
         <h2>کدام بررسی را انجام می‌دهید؟</h2>
         <p className="muted">
           یک نوع بررسی انتخاب کنید. بقیه مراحل را قدم‌به‌قدم راهنمایی می‌کنیم.
@@ -75,7 +83,7 @@ export function HomePage() {
             (m) => m === 'required' || m === 'defaultOn',
           ).length
           return (
-            <Link key={type.id} to={`/setup/${type.id}`} className="iso-card">
+            <Link key={type.id} to={`/setup/${type.id}`} className="iso-card glass-card">
               <div className="iso-card-top">
                 <h2>{type.title}</h2>
                 <IsoCubeIcon tone={TONES[index % TONES.length]} />

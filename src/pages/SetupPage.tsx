@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { BrandSearch } from '../components/BrandSearch'
 import { JalaliRangePicker } from '../components/JalaliRangePicker'
 import { ReportOptions } from '../components/ReportOptions'
-import { DEFAULT_DIAG_IDS } from '../data/diagCatalog'
 import {
   isRangeValid,
   PERIOD_OPTIONS,
@@ -11,8 +10,10 @@ import {
   type PeriodKey,
 } from '../data/periods'
 import type { BrandBranch, FeatureId, FeatureMode } from '../data/types'
+import { useAuth } from '../lib/authContext'
 import { toFaDigits } from '../lib/jalali'
 import {
+  diagDefaultsForType,
   loadFeatures,
   loadReviewTypes,
   selectionForType,
@@ -21,6 +22,7 @@ import {
 export function SetupPage() {
   const { typeId = '' } = useParams()
   const navigate = useNavigate()
+  const { configReady } = useAuth()
   const types = loadReviewTypes()
   const features = loadFeatures()
   const type = types.find((t) => t.id === typeId)
@@ -33,13 +35,16 @@ export function SetupPage() {
   const [selected, setSelected] = useState<
     { id: FeatureId; mode: FeatureMode | null; checked: boolean }[]
   >([])
-  const [diagSelected, setDiagSelected] = useState<number[]>(DEFAULT_DIAG_IDS)
+  const [diagSelected, setDiagSelected] = useState<number[]>([])
 
   useEffect(() => {
     const current = loadReviewTypes().find((t) => t.id === typeId)
     const catalog = loadFeatures()
-    if (current) setSelected(selectionForType(current, catalog))
-  }, [typeId])
+    if (current) {
+      setSelected(selectionForType(current, catalog))
+      setDiagSelected(diagDefaultsForType(current))
+    }
+  }, [typeId, configReady])
 
   const enabledCount = selected.filter((s) => s.checked).length
 
@@ -220,7 +225,7 @@ export function SetupPage() {
             onSetDiag={setDiagSelected}
             onReset={() => {
               setSelected(selectionForType(type, loadFeatures()))
-              setDiagSelected(DEFAULT_DIAG_IDS)
+              setDiagSelected(diagDefaultsForType(type))
             }}
           />
         ) : null}

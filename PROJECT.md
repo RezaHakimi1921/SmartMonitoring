@@ -65,16 +65,16 @@ https://github.com/RezaHakimi1921/SmartMonitoring.git
 
 - Vite + React + TypeScript
 - پورت dev: `5180`
-- داده گزارش فعلاً **mock** (نمونه گزارش تیم مانیتورینگ)
+- داده گزارش از SQL زنده (`Fact_Branch`، `DiagReports`، `ClubGroups`، `BrandEvents`، …) با API داخلی Vite
+- لودینگ اسکلتون **به‌ازای هر بخش** (نه اسپینر تمام‌صفحه)
 
 ## کار باقی‌مانده (فاز بعد)
 
-1. اتصال زنده به API/SP به‌جای mock و به‌جای JSON استاتیک brands
-2. لینک واقعی `@smartx/design-system` داخل monorepo `smartx-web`
-3. پر کردن هر ویژگی از گزارش‌های متناظر اینسایت / کلاب / ارزیابی / BI
-4. قالب خروجی مشتری نزدیک‌تر به فرمت چت فعلی تیم
-5. احراز هویت و سطح دسترسی مانیتورینگ
-6. اسکریپت refresh برای `brands.json` یا endpoint زنده
+1. لینک واقعی `@smartx/design-system` داخل monorepo `smartx-web`
+2. غنی‌سازی بیشتر متریک‌ها از SPهای اینسایت/BI وقتی فاکتور DW صفر است
+3. احراز هویت و سطح دسترسی مانیتورینگ
+4. اسکریپت refresh برای `brands.json` یا endpoint زنده
+5. قالب خروجی مشتری نزدیک‌تر به فرمت چت فعلی تیم
 
 ## اجرا
 

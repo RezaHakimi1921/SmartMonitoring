@@ -16,11 +16,20 @@ function normalize(s: string) {
     .trim()
 }
 
+function brandsUrl() {
+  const base = import.meta.env.BASE_URL || '/'
+  const root = base.endsWith('/') ? base : `${base}/`
+  return `${root}data/brands.json`
+}
+
 export async function loadBrands(): Promise<BrandBranch[]> {
   if (cache) return cache
-  const res = await fetch('/data/brands.json')
+  const res = await fetch(brandsUrl())
   if (!res.ok) throw new Error('بارگذاری مجموعه‌ها ناموفق بود')
   const data = (await res.json()) as BrandsFile
+  if (!data?.items || !Array.isArray(data.items)) {
+    throw new Error('فایل مجموعه‌ها نامعتبر است')
+  }
   cache = data.items
   return cache
 }

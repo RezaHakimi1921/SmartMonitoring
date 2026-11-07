@@ -3,11 +3,10 @@ import { Link } from 'react-router-dom'
 import { formatJalaliLong, gregorianToJalali, toFaDigits } from '../lib/jalali'
 
 type Props = {
-  /** متن خودکار پیام (شامل یادداشت کارشناس) */
-  generated: string
+  customerMessage: string
+  assistantForm: string
   note: string
   onNote: (value: string) => void
-  /** زمان ثبت ارسال؛ خالی یعنی هنوز ارسال نشده */
   sentAt?: string
   onToggleSent: () => void
   busy: boolean
@@ -25,9 +24,19 @@ function sentText(iso: string) {
   return `${formatJalaliLong(gregorianToJalali(d))} · ${time}`
 }
 
-/** مرحله آخر گزارش: دانلود PDF، متن قابل ویرایش، یادداشت و ثبت ارسال. */
+async function copyText(text: string, onFlash: Props['onFlash'], ok: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+    onFlash(ok)
+  } catch {
+    onFlash('کپی انجام نشد؛ متن را دستی انتخاب کنید.', 3200)
+  }
+}
+
+/** مرحله آخر: PDF + پیام مشتری + فرم دستیار */
 export function SendStep({
-  generated,
+  customerMessage,
+  assistantForm,
   note,
   onNote,
   sentAt,
@@ -37,30 +46,26 @@ export function SendStep({
   onDownload,
   onFlash,
 }: Props) {
-  const [edited, setEdited] = useState<string | null>(null)
+  const [editedMsg, setEditedMsg] = useState<string | null>(null)
+  const [editedAssist, setEditedAssist] = useState<string | null>(null)
 
-  // اگر متن خودکار عوض شد (مثلاً مجموعه یا یادداشت تغییر کرد) ویرایش دستی کنار می‌رود
   useEffect(() => {
-    setEdited(null)
-  }, [generated])
+    setEditedMsg(null)
+  }, [customerMessage])
 
-  const text = edited ?? generated
+  useEffect(() => {
+    setEditedAssist(null)
+  }, [assistantForm])
 
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(text)
-      onFlash('متن پیام کپی شد')
-    } catch {
-      onFlash('کپی انجام نشد؛ متن را دستی انتخاب کنید.', 3200)
-    }
-  }
+  const msg = editedMsg ?? customerMessage
+  const assist = editedAssist ?? assistantForm
 
   return (
     <>
-      <h3 style={{ margin: '0 0 4px' }}>آماده ارسال برای مشتری</h3>
+      <h3 style={{ margin: '0 0 4px' }}>آماده ارسال و ثبت</h3>
       <p className="muted" style={{ margin: '0 0 14px' }}>
-        ۱) فایل PDF را دانلود کنید. ۲) متن پیام را بخوانید و در صورت نیاز ویرایش
-        و کپی کنید. ۳) هر دو را برای مشتری بفرستید و «ارسال شد» را ثبت کنید.
+        PDF را دانلود کنید، متن پیام مشتری را بفرستید، و در صورت نیاز فرم دستیار
+        را کپی کنید.
       </p>
 
       <div className="send-actions">
@@ -72,17 +77,10 @@ export function SendStep({
         >
           {busy ? 'در حال ساخت…' : 'دانلود PDF گزارش'}
         </button>
-        <button
-          type="button"
-          className="btn btn-secondary btn-large"
-          onClick={() => void copy()}
-        >
-          کپی متن پیام
-        </button>
       </div>
 
       <label className="field-label" htmlFor="op-note" style={{ marginTop: 16 }}>
-        یادداشت کارشناس (اختیاری؛ در انتهای پیام می‌آید)
+        یادداشت کارشناس (اختیاری؛ در هر دو قالب می‌آید)
       </label>
       <textarea
         id="op-note"
@@ -93,33 +91,75 @@ export function SendStep({
         onChange={(e) => onNote(e.target.value)}
       />
 
-      <div className="summary-row" style={{ marginTop: 16 }}>
-        <label className="field-label" htmlFor="msg-text" style={{ margin: 0 }}>
-          متن پیام (قابل ویرایش)
-        </label>
-        {edited !== null ? (
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={() => setEdited(null)}
-          >
-            بازگرداندن متن خودکار
-          </button>
-        ) : null}
-      </div>
-      <textarea
-        id="msg-text"
-        className="textarea message-edit"
-        rows={12}
-        value={text}
-        onChange={(e) => setEdited(e.target.value)}
-      />
+      <section className="panel glass-card" style={{ marginTop: 20 }}>
+        <div className="summary-row">
+          <h3 className="panel-title" style={{ margin: 0 }}>
+            ۱) فرمت ارسال پیام به مشتری
+          </h3>
+          <div className="actions">
+            {editedMsg !== null ? (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setEditedMsg(null)}
+              >
+                بازگرداندن خودکار
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => void copyText(msg, onFlash, 'متن پیام مشتری کپی شد')}
+            >
+              کپی پیام مشتری
+            </button>
+          </div>
+        </div>
+        <textarea
+          className="textarea message-edit"
+          rows={10}
+          value={msg}
+          onChange={(e) => setEditedMsg(e.target.value)}
+        />
+      </section>
+
+      <section className="panel glass-card" style={{ marginTop: 16 }}>
+        <div className="summary-row">
+          <h3 className="panel-title" style={{ margin: 0 }}>
+            ۲) فرمت اطلاعات برای ثبت فرم دستیار
+          </h3>
+          <div className="actions">
+            {editedAssist !== null ? (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setEditedAssist(null)}
+              >
+                بازگرداندن خودکار
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() =>
+                void copyText(assist, onFlash, 'متن فرم دستیار کپی شد')
+              }
+            >
+              کپی فرم دستیار
+            </button>
+          </div>
+        </div>
+        <textarea
+          className="textarea message-edit"
+          rows={10}
+          value={assist}
+          onChange={(e) => setEditedAssist(e.target.value)}
+        />
+      </section>
 
       <div className="sent-box">
         {sentAt ? (
-          <p>
-            ✅ ارسال‌شده برای مشتری · {sentText(sentAt)}
-          </p>
+          <p>ارسال‌شده برای مشتری · {sentText(sentAt)}</p>
         ) : (
           <p className="muted">هنوز به‌عنوان ارسال‌شده ثبت نشده است.</p>
         )}

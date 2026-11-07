@@ -1,40 +1,32 @@
 import { DEFAULT_REVIEW_TYPES, FEATURES } from '../data/catalog'
-import type { Feature, FeatureId, FeatureMode, ReviewType } from '../data/types'
+import { DEFAULT_DIAG_IDS } from '../data/diagCatalog'
+import type {
+  Feature,
+  FeatureId,
+  FeatureMode,
+  MonitoringConfig,
+  ReviewType,
+} from '../data/types'
 
-const TYPES_KEY = 'sx-monitoring-review-types'
-const FEATURES_KEY = 'sx-monitoring-features'
+let cachedConfig: MonitoringConfig | null = null
 
-export function loadReviewTypes(): ReviewType[] {
-  try {
-    const raw = localStorage.getItem(TYPES_KEY)
-    if (!raw) return structuredClone(DEFAULT_REVIEW_TYPES)
-    return JSON.parse(raw) as ReviewType[]
-  } catch {
-    return structuredClone(DEFAULT_REVIEW_TYPES)
-  }
+export function setCachedConfig(config: MonitoringConfig | null) {
+  cachedConfig = config
 }
 
-export function saveReviewTypes(types: ReviewType[]) {
-  localStorage.setItem(TYPES_KEY, JSON.stringify(types))
+export function getCachedConfig(): MonitoringConfig | null {
+  return cachedConfig
+}
+
+export function loadReviewTypes(): ReviewType[] {
+  if (cachedConfig?.reviewTypes?.length) {
+    return structuredClone(cachedConfig.reviewTypes)
+  }
+  return structuredClone(DEFAULT_REVIEW_TYPES)
 }
 
 export function loadFeatures(): Feature[] {
-  try {
-    const raw = localStorage.getItem(FEATURES_KEY)
-    if (!raw) return structuredClone(FEATURES)
-    return JSON.parse(raw) as Feature[]
-  } catch {
-    return structuredClone(FEATURES)
-  }
-}
-
-export function saveFeatures(features: Feature[]) {
-  localStorage.setItem(FEATURES_KEY, JSON.stringify(features))
-}
-
-export function resetCatalog() {
-  localStorage.removeItem(TYPES_KEY)
-  localStorage.removeItem(FEATURES_KEY)
+  return structuredClone(FEATURES)
 }
 
 /** All catalog features; type modes set default checked state. */
@@ -47,4 +39,9 @@ export function selectionForType(
     const checked = mode === 'required' || mode === 'defaultOn'
     return { id: f.id, mode, checked }
   })
+}
+
+export function diagDefaultsForType(type: ReviewType | undefined): number[] {
+  if (type?.diagDefaults?.length) return [...type.diagDefaults]
+  return [...DEFAULT_DIAG_IDS]
 }

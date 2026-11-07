@@ -1,3 +1,4 @@
+import { DEFAULT_DIAG_IDS } from './diagCatalog'
 import type { Feature, FeatureCategoryId, ReviewType } from './types'
 
 export const FEATURE_CATEGORIES: {
@@ -135,10 +136,18 @@ export const DEFAULT_REVIEW_TYPES: ReviewType[] = [
       overall: 'defaultOn',
       subscription: 'defaultOn',
       survey: 'defaultOn',
+      balance: 'defaultOn',
       panelCharge: 'defaultOn',
       complaints: 'defaultOn',
+      brandSettings: 'defaultOn',
+      groups: 'defaultOn',
+      connection: 'defaultOn',
+      credit: 'defaultOn',
+      event: 'defaultOn',
+      smartBlock: 'defaultOff',
       creditGeneration: 'defaultOff',
     },
+    diagDefaults: [...DEFAULT_DIAG_IDS],
   },
   {
     id: 'first',
@@ -152,8 +161,10 @@ export const DEFAULT_REVIEW_TYPES: ReviewType[] = [
       brandSettings: 'defaultOn',
       balance: 'defaultOn',
       connection: 'defaultOn',
+      event: 'defaultOn',
       creditGeneration: 'defaultOff',
     },
+    diagDefaults: [...DEFAULT_DIAG_IDS, 9, 10, 11, 20],
   },
   {
     id: 'after-renewal',
@@ -174,6 +185,7 @@ export const DEFAULT_REVIEW_TYPES: ReviewType[] = [
       connection: 'defaultOn',
       complaints: 'defaultOn',
     },
+    diagDefaults: [...DEFAULT_DIAG_IDS, 9, 10, 19, 20, 30, 33],
   },
   {
     id: 'fourth',
@@ -191,6 +203,7 @@ export const DEFAULT_REVIEW_TYPES: ReviewType[] = [
       event: 'defaultOn',
       smartBlock: 'defaultOff',
     },
+    diagDefaults: [...DEFAULT_DIAG_IDS, 9, 30],
   },
 ]
 

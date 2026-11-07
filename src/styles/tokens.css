@@ -1,48 +1,56 @@
 :root {
-  --font-primary: "Vazirmatn", "IRANYekanX", "IRANYekan", Tahoma, "Segoe UI", sans-serif;
+  /* UUPM Analytics Dashboard (light) + Glassmorphism — Estedad for FA */
+  --font-primary: "Estedad", "Vazirmatn", "IRANYekanX", Tahoma, "Segoe UI", sans-serif;
 
-  --primary: #0f766e;
-  --primary-strong: #115e59;
-  --primary-soft: rgba(15, 118, 110, 0.14);
+  --primary: #1e40af;
+  --primary-strong: #1e3a8a;
+  --primary-soft: rgba(30, 64, 175, 0.12);
   --on-primary: #ffffff;
-  --primary-container: #ccfbf1;
-  --on-primary-container: #042f2e;
+  --primary-container: #dbeafe;
+  --on-primary-container: #1e3a8a;
 
-  --secondary: #475569;
-  --secondary-container: #e2e8f0;
-  --on-secondary-container: #0f172a;
+  --secondary: #3b82f6;
+  --secondary-container: #eff6ff;
+  --on-secondary-container: #1e3a8a;
 
   --surface: #f8fafc;
-  --surface-dim: #e8eef5;
-  --surface-glass: rgba(255, 255, 255, 0.62);
-  --surface-glass-strong: rgba(255, 255, 255, 0.82);
-  --surface-ink: #0b1220;
-  --on-surface: #0f172a;
-  --on-surface-variant: #586579;
+  --surface-dim: #e9eef6;
+  --surface-glass: rgba(255, 255, 255, 0.72);
+  --surface-glass-strong: rgba(255, 255, 255, 0.88);
+  --surface-ink: #1e3a8a;
+  --on-surface: #1e3a8a;
+  --on-surface-variant: #475569;
   --outline: #94a3b8;
-  --outline-variant: rgba(148, 163, 184, 0.35);
+  --outline-variant: rgba(30, 64, 175, 0.14);
+
+  /* Glassmorphism (UUPM style checklist) */
+  --blur-amount: 15px;
+  --glass-opacity: 0.78;
+  --glass-border: rgba(255, 255, 255, 0.55);
+  --glass-border-tint: rgba(30, 64, 175, 0.12);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.65);
 
   --error: #dc2626;
-  --error-container: #fee2e2;
+  --error-container: #fef2f2;
   --on-error-container: #7f1d1d;
-  --success: #059669;
-  --success-container: #d1fae5;
-  --on-success-container: #064e3b;
+  --success: #16a34a;
+  --success-container: #f0fdf4;
+  --on-success-container: #14532d;
   --warning: #d97706;
-  --warning-container: #ffedd5;
-  --on-warning-container: #7c2d12;
-  --info: #0284c7;
-  --info-container: #e0f2fe;
+  --warning-container: #fffbeb;
+  --on-warning-container: #78350f;
+  --info: #2563eb;
+  --info-container: #eff6ff;
 
-  --iso-edge: #0f172a;
-  --iso-accent: #2dd4bf;
-  --iso-glow: rgba(45, 212, 191, 0.35);
-  --grid-line: rgba(15, 23, 42, 0.06);
+  --iso-edge: #1e3a8a;
+  --iso-accent: #147d74;
+  --iso-glow: rgba(30, 64, 175, 0.28);
+  --grid-line: rgba(30, 64, 175, 0.04);
 
   --radius-sm: 10px;
-  --radius-md: 14px;
+  --radius-md: 13px;
   --radius-lg: 18px;
-  --radius-xl: 28px;
+  --radius-xl: 24px;
 
   --space-4: 4px;
   --space-8: 8px;
@@ -52,8 +60,8 @@
   --space-32: 32px;
   --space-40: 40px;
 
-  --nav-width: 272px;
-  --shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.08);
-  --shadow-lift: 0 18px 40px rgba(15, 23, 42, 0.14);
+  --nav-width: 252px;
+  --shadow-soft: 0 12px 40px rgba(30, 58, 138, 0.08);
+  --shadow-lift: 0 14px 36px rgba(15, 23, 42, 0.14);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
