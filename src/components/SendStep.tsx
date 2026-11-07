@@ -176,8 +176,8 @@ export function SendStep({
         <Link to="/" className="btn btn-ghost">
           شروع بررسی جدید
         </Link>
-        <Link to="/history" className="btn btn-ghost">
-          همه گزارش‌ها
+        <Link to="/reports" className="btn btn-ghost">
+          صندوق گزارش‌ها
         </Link>
       </div>
     </>

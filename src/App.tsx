@@ -61,11 +61,15 @@ export default function App() {
                 path="report/:typeId/:branchId"
                 element={<ReportPage />}
               />
+              <Route path="reports" element={<ReportsDashboardPage />} />
+              <Route
+                path="reports-admin"
+                element={<Navigate to="/reports" replace />}
+              />
               <Route path="history" element={<HistoryPage />} />
               <Route path="help" element={<HelpPage />} />
               <Route element={<RequireAdmin />}>
                 <Route path="admin" element={<AdminPage />} />
-                <Route path="reports-admin" element={<ReportsDashboardPage />} />
                 <Route path="users" element={<UsersPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

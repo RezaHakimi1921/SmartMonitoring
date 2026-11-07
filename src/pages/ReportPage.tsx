@@ -285,6 +285,21 @@ export function ReportPage() {
       branchId,
       query: queryString,
     })
+  }, [type, typeId, brandName, branchName, branchId, queryString])
+
+  useEffect(() => {
+    if (!type || !current) return
+    const stageKey =
+      current.key === 'summary' ||
+      current.key === 'section' ||
+      current.key === 'diag' ||
+      current.key === 'send'
+        ? current.key
+        : 'summary'
+    const stageLabel =
+      sentAt && stageKey === 'send'
+        ? 'ارسال‌شده'
+        : current.title
     void postReportLog({
       typeId,
       typeTitle: type.title,
@@ -292,11 +307,28 @@ export function ReportPage() {
       brandName,
       branchName,
       features: featureIds,
-      status: 'draft',
+      status: sentAt ? 'sent' : 'draft',
+      stageKey: sentAt ? 'sent' : stageKey,
+      stageLabel: sentAt ? 'ارسال‌شده' : stageLabel,
+      stepIndex: safeStep,
+      stepTotal: steps.length,
+      query: queryString,
     }).catch(() => {
       /* لاگ سرور اختیاری است؛ تاریخچه محلی باقی می‌ماند */
     })
-  }, [type, typeId, brandName, branchName, branchId, queryString, featureIds])
+  }, [
+    type,
+    typeId,
+    brandName,
+    branchName,
+    branchId,
+    queryString,
+    featureIds,
+    current,
+    safeStep,
+    steps.length,
+    sentAt,
+  ])
 
   const entryId = historyId(typeId, branchId)
   useEffect(() => {
@@ -581,6 +613,11 @@ export function ReportPage() {
         branchName,
         features: featureIds,
         status: 'draft',
+        stageKey: 'send',
+        stageLabel: 'آماده ارسال',
+        stepIndex: safeStep,
+        stepTotal: steps.length,
+        query: queryString,
         note,
       }).catch(() => undefined)
       flash('ثبت ارسال لغو شد')
@@ -596,6 +633,11 @@ export function ReportPage() {
         branchName,
         features: featureIds,
         markSent: true,
+        stageKey: 'sent',
+        stageLabel: 'ارسال‌شده',
+        stepIndex: safeStep,
+        stepTotal: steps.length,
+        query: queryString,
         note,
       }).catch(() => undefined)
       flash('به‌عنوان ارسال‌شده ثبت شد')

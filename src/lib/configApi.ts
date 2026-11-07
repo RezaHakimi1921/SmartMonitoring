@@ -58,6 +58,19 @@ export async function resetServerConfig(): Promise<MonitoringConfig> {
   return data.config
 }
 
+export type ReportStageKey =
+  | 'summary'
+  | 'section'
+  | 'diag'
+  | 'send'
+  | 'sent'
+
+export type ReportAuthor = {
+  userId: string
+  username: string
+  displayName: string
+}
+
 export type ServerReport = {
   id: string
   userId: string
@@ -70,6 +83,11 @@ export type ServerReport = {
   branchName: string
   features: string[]
   status: 'draft' | 'sent'
+  stageKey: ReportStageKey
+  stageLabel: string
+  stepIndex: number
+  stepTotal: number
+  query?: string
   createdAt: string
   updatedAt: string
   sentAt?: string
@@ -84,6 +102,11 @@ export async function postReportLog(body: {
   branchName: string
   features: string[]
   status?: 'draft' | 'sent'
+  stageKey?: ReportStageKey
+  stageLabel?: string
+  stepIndex?: number
+  stepTotal?: number
+  query?: string
   note?: string
   markSent?: boolean
 }): Promise<ServerReport> {
@@ -103,21 +126,31 @@ export async function postReportLog(body: {
 export async function fetchReports(params?: {
   userId?: string
   typeId?: string
+  status?: 'draft' | 'sent'
+  stageKey?: ReportStageKey
   from?: string
   to?: string
-}): Promise<ServerReport[]> {
+}): Promise<{ reports: ServerReport[]; authors: ReportAuthor[] }> {
   const q = new URLSearchParams()
   if (params?.userId) q.set('userId', params.userId)
   if (params?.typeId) q.set('typeId', params.typeId)
+  if (params?.status) q.set('status', params.status)
+  if (params?.stageKey) q.set('stageKey', params.stageKey)
   if (params?.from) q.set('from', params.from)
   if (params?.to) q.set('to', params.to)
   const qs = q.toString()
   const res = await fetch(apiUrl(`api/reports${qs ? `?${qs}` : ''}`), {
     credentials: 'include',
   })
-  const data = await parseJson<{ reports: ServerReport[] }>(res)
+  const data = await parseJson<{
+    reports: ServerReport[]
+    authors?: ReportAuthor[]
+  }>(res)
   if (!res.ok) throw new Error(data.error || 'بارگذاری گزارش‌ها ناموفق')
-  return data.reports ?? []
+  return {
+    reports: data.reports ?? [],
+    authors: data.authors ?? [],
+  }
 }
 
 export function fillTemplate(

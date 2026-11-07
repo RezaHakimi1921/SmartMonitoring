@@ -29,7 +29,13 @@ import {
   resolveBranch,
   type FeatureId,
 } from './loaders'
-import { listReports, upsertReport } from './reportsStore'
+import {
+  listReportAuthors,
+  listReports,
+  upsertReport,
+  type ReportStageKey,
+  type ReportLogStatus,
+} from './reportsStore'
 
 function readUrl(req: IncomingMessage) {
   return new URL(req.url || '/', 'http://localhost')
@@ -250,14 +256,36 @@ export async function handleApi(
     }
 
     if (req.method === 'GET' && pathOnly === '/api/reports') {
-      requireAdmin(req)
+      requireUser(req)
+      const statusParam = url.searchParams.get('status')
+      const stageParam = url.searchParams.get('stageKey')
+      const status =
+        statusParam === 'draft' || statusParam === 'sent'
+          ? (statusParam as ReportLogStatus)
+          : undefined
+      const stageKey = (
+        [
+          'summary',
+          'section',
+          'diag',
+          'send',
+          'sent',
+        ] as ReportStageKey[]
+      ).includes(stageParam as ReportStageKey)
+        ? (stageParam as ReportStageKey)
+        : undefined
       const reports = listReports({
         userId: url.searchParams.get('userId') || undefined,
         typeId: url.searchParams.get('typeId') || undefined,
+        status,
+        stageKey,
         fromIso: url.searchParams.get('from') || undefined,
         toIso: url.searchParams.get('to') || undefined,
       })
-      await sendJson(res, 200, { reports })
+      await sendJson(res, 200, {
+        reports,
+        authors: listReportAuthors(),
+      })
       return true
     }
 
@@ -271,6 +299,11 @@ export async function handleApi(
         branchName?: string
         features?: string[]
         status?: 'draft' | 'sent'
+        stageKey?: ReportStageKey
+        stageLabel?: string
+        stepIndex?: number
+        stepTotal?: number
+        query?: string
         note?: string
         markSent?: boolean
       }>(req)
@@ -289,6 +322,11 @@ export async function handleApi(
         branchName: body.branchName || '',
         features: body.features || [],
         status: body.status,
+        stageKey: body.stageKey,
+        stageLabel: body.stageLabel,
+        stepIndex: body.stepIndex,
+        stepTotal: body.stepTotal,
+        query: body.query,
         note: body.note,
         markSent: body.markSent,
       })

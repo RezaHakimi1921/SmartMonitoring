@@ -17,15 +17,15 @@ import { formatJalaliLong, todayJalali } from '../lib/jalali'
 
 const NAV = [
   { to: '/', label: 'بررسی جدید', end: true, icon: LayoutDashboard },
-  { to: '/history', label: 'گزارش‌های من', end: false, icon: BarChart3 },
+  { to: '/reports', label: 'گزارش‌ها', end: false, icon: BarChart3 },
   { to: '/help', label: 'راهنما', end: false, icon: CircleHelp },
 ] as const
 
 function titleFor(pathname: string) {
   if (pathname.startsWith('/users')) return 'مدیریت کاربران'
-  if (pathname.startsWith('/reports-admin')) return 'داشبورد گزارش‌ها'
+  if (pathname.startsWith('/reports')) return 'صندوق گزارش‌ها'
   if (pathname.startsWith('/admin')) return 'تنظیمات انواع بررسی'
-  if (pathname.startsWith('/history')) return 'گزارش‌های اخیر'
+  if (pathname.startsWith('/history')) return 'گزارش‌های این مرورگر'
   if (pathname.startsWith('/help')) return 'راهنمای استفاده'
   if (pathname.startsWith('/setup')) return 'تنظیم بررسی'
   if (pathname.startsWith('/report')) return 'گزارش تجربه مشتری'
@@ -39,8 +39,8 @@ function subtitleFor(pathname: string) {
   if (pathname.startsWith('/admin')) {
     return 'ویژگی‌ها، آستانه‌ها و قالب پیام روی سرور'
   }
-  if (pathname.startsWith('/reports-admin')) {
-    return 'چه کسی چه گزارشی گرفته است'
+  if (pathname.startsWith('/reports')) {
+    return 'همه گزارش‌های تیم · فیلتر کاربر و مرحله'
   }
   if (pathname.startsWith('/history')) {
     return 'گزارش‌های ذخیره‌شده روی این مرورگر'
@@ -123,13 +123,6 @@ export function AppShell() {
               >
                 <Settings size={19} />
                 <span>تنظیمات بررسی</span>
-              </NavLink>
-              <NavLink
-                to="/reports-admin"
-                className={({ isActive }) => (isActive ? 'active' : undefined)}
-              >
-                <FileText size={19} />
-                <span>داشبورد گزارش‌ها</span>
               </NavLink>
               <NavLink
                 to="/users"
