@@ -9,10 +9,12 @@ import { BrandSearch } from '../components/BrandSearch'
 import { ExportSheet } from '../components/ExportSheet'
 import { JalaliRangePicker } from '../components/JalaliRangePicker'
 import { ReportOptions } from '../components/ReportOptions'
-import { ScoreRing } from '../components/ScoreRing'
+import { ReportSummaryView } from '../components/ReportSummaryView'
 import { SectionSkeleton } from '../components/SectionSkeleton'
 import { SendStep } from '../components/SendStep'
-import { ChevronLeft, FileText, Sparkles, TrendingUp } from 'lucide-react'
+import { Ico } from '../components/make/icons'
+import { FileText } from 'lucide-react'
+import rp from './ReportPage.module.css'
 import { DEFAULT_DIAG_IDS, DIAG_ITEMS } from '../data/diagCatalog'
 import {
   isRangeValid,
@@ -65,100 +67,6 @@ type LoadState =
   | { status: 'ready'; section: ReportSection }
   | { status: 'error'; message: string }
 
-/** همان N بخش از اول تا آخر؛ هر بخش که آماده شد جایش با دیتا پر می‌شود (تعداد عوض نمی‌شود). */
-function SummaryFeatureSlots({
-  featureIds,
-  catalog,
-  sectionState,
-}: {
-  featureIds: FeatureId[]
-  catalog: { id: FeatureId; title: string }[]
-  sectionState: Partial<Record<FeatureId, LoadState>>
-}) {
-  const readyN = featureIds.filter(
-    (id) => sectionState[id]?.status === 'ready',
-  ).length
-  return (
-    <div className="sum-group sum-pending">
-      <h4>
-        بخش‌های گزارش{' '}
-        <span className="chip">
-          {toFaDigits(readyN)}/{toFaDigits(featureIds.length)}
-        </span>
-      </h4>
-      <ul className="sum-slot-list">
-        {featureIds.map((id) => {
-          const title = featureTitle(id, catalog)
-          const st = sectionState[id]
-          if (st?.status === 'ready') {
-            const lines: string[] = []
-            for (const h of st.section.hints ?? []) {
-              if (
-                h.tone === 'bad' ||
-                h.tone === 'warn' ||
-                h.tone === 'ok' ||
-                h.tone === 'nodata'
-              ) {
-                lines.push(h.text)
-              }
-            }
-            for (const m of st.section.metrics) {
-              if (
-                m.tone === 'bad' ||
-                m.tone === 'warn' ||
-                m.tone === 'ok' ||
-                m.tone === 'nodata'
-              ) {
-                const v = (m.value || '').trim()
-                if (
-                  m.tone === 'ok' &&
-                  (v === '—' ||
-                    v === '۰' ||
-                    v === '۰.۰٪' ||
-                    v === '0' ||
-                    v === '0.0%')
-                ) {
-                  continue
-                }
-                lines.push(`${m.label}: ${m.value}`)
-              }
-            }
-            if (lines.length === 0) {
-              lines.push('بررسی شد — مورد خاصی برای نمایش نیست')
-            }
-            return (
-              <li key={id} className="sum-slot ready sum-slot-block">
-                <span className="sum-from">{title}</span>
-                <ul className="sum-slot-lines">
-                  {lines.map((text, idx) => (
-                    <li key={idx}>{text}</li>
-                  ))}
-                </ul>
-              </li>
-            )
-          }
-          if (st?.status === 'error') {
-            return (
-              <li key={id} className="sum-slot error">
-                <span className="sum-from">{title}</span>
-                {st.message}
-              </li>
-            )
-          }
-          return (
-            <li key={id} className="sum-slot loading" aria-busy="true">
-              <span className="sum-from">{title}</span>
-              <span className="sum-slot-skel">
-                <span className="skel skel-line value" />
-              </span>
-            </li>
-          )
-        })}
-      </ul>
-    </div>
-  )
-}
-
 function featureTitle(id: FeatureId, catalog: { id: FeatureId; title: string }[]) {
   return catalog.find((f) => f.id === id)?.title ?? id
 }
@@ -177,9 +85,6 @@ export function ReportPage() {
   const [note, setNote] = useState('')
   const [sentAt, setSentAt] = useState<string | undefined>()
   const [onlyAttention, setOnlyAttention] = useState(false)
-  const [filterTone, setFilterTone] = useState<'bad' | 'warn' | 'ok' | null>(
-    null,
-  )
   const [sectionState, setSectionState] = useState<
     Partial<Record<FeatureId, LoadState>>
   >({})
@@ -238,7 +143,6 @@ export function ReportPage() {
   const loadingCount = featureIds.filter(
     (id) => sectionState[id]?.status === 'loading' || !sectionState[id],
   ).length
-  const readyCount = sections.length
 
   const place =
     branchName && branchName !== brandName
@@ -727,73 +631,75 @@ export function ReportPage() {
     )
   }
 
-  const ringFrom = (featureId: FeatureId, labelPart: string) => {
-    const st = sectionState[featureId]
-    if (st?.status !== 'ready') return null
-    const m = st.section.metrics.find((x) => x.label.includes(labelPart))
-    if (!m) return null
-    const n = Number(
-      String(m.value)
-        .replace(/[^\d.,]/g, '')
-        .replace(',', '.')
-        .replace(/[^\d.]/g, ''),
+  const journeyStage: 'summary' | 'section' | 'diag' | 'send' =
+    current.key === 'section' ? 'section' : current.key
+
+  const goJourney = (stage: 'summary' | 'section' | 'diag' | 'send') => {
+    const idx = steps.findIndex((s) =>
+      stage === 'section' ? s.key === 'section' : s.key === stage,
     )
-    return { value: m.value, progress: Number.isFinite(n) ? n : 0 }
+    if (idx >= 0) setStep(idx)
   }
-  const subRing = ringFrom('subscription', 'اشتراک')
-  const engRing = ringFrom('survey', 'نرخ')
-  const custRing = ringFrom('balance', 'یک سال')
-  const topHint =
-    summary.bad[0]?.text ||
-    summary.warn[0]?.text ||
-    'بخش‌های گزارش را یکی‌یکی مرور کنید و موارد مهم را برای پیگیری علامت بزنید.'
+
+  const stageOrder = ['summary', 'section', 'diag', 'send'] as const
+  const stageIndex = stageOrder.indexOf(journeyStage)
+
+  const primaryLabel =
+    journeyStage === 'summary'
+      ? 'ادامه بررسی'
+      : journeyStage === 'section'
+        ? safeStep < steps.length - 1 && steps[safeStep + 1]?.key === 'section'
+          ? 'بخش بعدی'
+          : 'نکات پیگیری'
+        : journeyStage === 'diag'
+          ? 'رفتن به ارسال'
+          : sentAt
+            ? 'رفتن به صندوق گزارش'
+            : 'ثبت ارسال'
+
+  const goPrimary = () => {
+    if (journeyStage === 'send' && sentAt) {
+      navigate('/reports')
+      return
+    }
+    if (safeStep < steps.length - 1) setStep(safeStep + 1)
+  }
 
   return (
-    <div className="flow report-flow" ref={topRef}>
-      <section className="period-bar">
+    <div className={rp.page} ref={topRef}>
+      <div className={rp.head}>
         <div>
-          <span>{type.title}</span>
-          <strong>
-            {place} · {rangeText}
-          </strong>
+          <h1>{place}</h1>
+          <p>
+            گزارش زنده · {type.title} · {rangeText}
+          </p>
         </div>
-        <div className="period-controls" style={{ gap: 0 }}>
+        <div className={rp.headActions}>
           <button
             type="button"
-            aria-label="تغییر بازه"
+            className={rp.btnGhost}
+            aria-expanded={editing}
             onClick={() => setEditing((v) => !v)}
-            title="تغییر مجموعه یا بازه"
           >
-            {editing ? '✕' : '⚙'}
+            {editing ? 'بستن' : 'بروزرسانی'}
+          </button>
+          <button
+            type="button"
+            className={rp.btnGhost}
+            disabled={busy || customIncomplete || loadingCount > 0}
+            onClick={() => void downloadPdf()}
+          >
+            <FileText size={16} />
+            {busy ? 'در حال ساخت…' : 'خروجی PDF'}
           </button>
         </div>
-      </section>
-
-      <div className="actions" style={{ marginBottom: 12, gap: 8 }}>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          aria-expanded={editing}
-          onClick={() => setEditing((v) => !v)}
-        >
-          {editing ? 'بستن تنظیمات' : 'تغییر مجموعه یا بازه'}
-        </button>
-        <button
-          type="button"
-          className="export-button"
-          disabled={busy || customIncomplete || loadingCount > 0}
-          onClick={() => void downloadPdf()}
-        >
-          <FileText size={18} />
-          {busy ? 'در حال ساخت…' : 'دانلود PDF'}
-        </button>
       </div>
 
       {editing ? (
-        <section className="step-card edit-panel">
+        <section className={rp.editPanel}>
           <BrandSearch value={brandDraft} onChange={changeBrand} />
 
-          <div>
+          <div style={{ marginTop: 12 }}>
             <div className="field-label">بازه زمانی (تاریخ‌ها شمسی هستند)</div>
             <div className="period-row">
               {PERIOD_OPTIONS.map((p) => (
@@ -824,22 +730,15 @@ export function ReportPage() {
             ) : null}
           </div>
 
-          <div>
-            <div className="summary-row">
-              <span>
-                <strong>{toFaDigits(featureIds.length)} بخش</strong> و{' '}
-                <strong>{toFaDigits(diagIds.length)} نکته پیگیری</strong> در
-                گزارش است.
-              </span>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                aria-expanded={showOptions}
-                onClick={() => setShowOptions((v) => !v)}
-              >
-                {showOptions ? 'بستن فهرست' : 'انتخاب بخش‌ها'}
-              </button>
-            </div>
+          <div style={{ marginTop: 12 }}>
+            <button
+              type="button"
+              className={rp.btnGhost}
+              aria-expanded={showOptions}
+              onClick={() => setShowOptions((v) => !v)}
+            >
+              {showOptions ? 'بستن فهرست بخش‌ها' : 'انتخاب بخش‌ها'}
+            </button>
             {showOptions ? (
               <div style={{ marginTop: 12 }}>
                 <ReportOptions
@@ -865,226 +764,85 @@ export function ReportPage() {
         </section>
       ) : null}
 
-      <div className="tabs-row" role="tablist" aria-label="مراحل گزارش">
-        {steps.map((s, i) => {
-          const tone =
-            s.key === 'section'
-              ? s.tone === 'bad'
-                ? '#ef4444'
-                : s.tone === 'warn'
-                  ? '#e8911e'
-                  : s.tone === 'ok'
-                    ? '#169b72'
-                    : '#147d74'
-              : '#147d74'
+      <div className={rp.stages} role="tablist" aria-label="مراحل گزارش">
+        {(
+          [
+            ['summary', 'خلاصه گزارش', 1],
+            ['section', 'بررسی بخش‌ها', 2],
+            ['diag', 'نکات پیگیری', 3],
+            ['send', 'ارسال گزارش', 4],
+          ] as const
+        ).map(([id, label, n]) => {
+          const idx = stageOrder.indexOf(id)
+          const on = journeyStage === id
+          const done = idx < stageIndex
+          const available =
+            id === 'summary' ||
+            (id === 'section' && steps.some((s) => s.key === 'section')) ||
+            (id === 'diag' && steps.some((s) => s.key === 'diag')) ||
+            id === 'send'
           return (
             <button
-              key={`${s.key}-${i}`}
+              key={id}
               type="button"
-              className={i === safeStep ? 'selected' : ''}
               role="tab"
-              aria-selected={i === safeStep}
-              onClick={() => setStep(i)}
+              disabled={!available}
+              aria-selected={on}
+              className={
+                on ? rp.stageOn : done ? rp.stageDone : rp.stage
+              }
+              onClick={() => goJourney(id)}
             >
-              <i style={{ backgroundColor: tone }} />
-              {s.title}
+              <span className={rp.stageNum}>
+                {done && !on ? Ico.check : toFaDigits(n)}
+              </span>
+              {label}
             </button>
           )
         })}
       </div>
 
-      <div className="filter-row">
-        <label>
-          <input
-            type="checkbox"
-            checked={onlyAttention}
-            onChange={(e) => {
-              setOnlyAttention(e.target.checked)
-              setStep(0)
-            }}
-          />
-          <span className="custom-checkbox" />
-          فقط بخش‌های نیازمند توجه
-        </label>
-        <span>
-          مرحله {toFaDigits(safeStep + 1)} از {toFaDigits(steps.length)}
-        </span>
-      </div>
+      {journeyStage === 'section' ? (
+        <div className={rp.sectionNav}>
+          <label className={rp.sectionChip} style={{ cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={onlyAttention}
+              onChange={(e) => {
+                setOnlyAttention(e.target.checked)
+                setStep(0)
+              }}
+              style={{ marginLeft: 6 }}
+            />
+            فقط نیازمند توجه
+          </label>
+          {steps.map((s, i) =>
+            s.key === 'section' ? (
+              <button
+                key={`${s.featureId}-${i}`}
+                type="button"
+                className={i === safeStep ? rp.sectionChipOn : rp.sectionChip}
+                onClick={() => setStep(i)}
+              >
+                {s.title}
+              </button>
+            ) : null,
+          )}
+        </div>
+      ) : null}
 
-      <section className="section-block journey-body">
+      <section className={rp.bodyCard}>
         {current.key === 'summary' ? (
-          <section className="overview-card">
-            <div className="section-heading">
-              <div>
-                <span className="eyebrow">
-                  <Sparkles size={16} />
-                  خلاصه هوشمند
-                </span>
-                <h2>خلاصه برای شروع صحبت با مشتری</h2>
-                <p>
-                  اول از این خلاصه شروع کنید؛ سپس بخش‌ها را یکی‌یکی مرور کنید.
-                  {loadingCount > 0
-                    ? ` هنوز ${toFaDigits(loadingCount)} بخش در حال بارگذاری است.`
-                    : ''}
-                </p>
-              </div>
-              <div className="updated-at">تاریخ گزارش: {reportDate}</div>
-            </div>
-
-            {featureIds.length === 0 ? (
-              <p className="muted">هیچ بخشی برای گزارش انتخاب نشده است.</p>
-            ) : (
-              <>
-                <div className="summary-grid" aria-busy={loadingCount > 0}>
-                  {(
-                    [
-                      ['bad', 'danger', 'نیاز به اقدام', summary.bad.length],
-                      ['warn', 'warning', 'قابل بهبود', summary.warn.length],
-                      ['ok', 'success', 'وضعیت خوب', summary.ok.length],
-                    ] as const
-                  ).map(([tone, card, label, count]) => (
-                    <button
-                      key={tone}
-                      type="button"
-                      className={`summary-card ${card}${filterTone === tone ? ' is-active' : ''}`}
-                      disabled={loadingCount > 0}
-                      aria-pressed={filterTone === tone}
-                      onClick={() =>
-                        setFilterTone((cur) => (cur === tone ? null : tone))
-                      }
-                      style={{ cursor: 'pointer', width: '100%', textAlign: 'right' }}
-                    >
-                      <div className="summary-icon">
-                        {tone === 'ok' ? (
-                          <Sparkles size={19} />
-                        ) : tone === 'warn' ? (
-                          <TrendingUp size={19} />
-                        ) : (
-                          <FileText size={19} />
-                        )}
-                      </div>
-                      <div>
-                        <strong>
-                          {loadingCount > 0 ? '…' : toFaDigits(count)}
-                        </strong>
-                        <span>{label}</span>
-                      </div>
-                      <small>کلیک برای جزئیات</small>
-                    </button>
-                  ))}
-                </div>
-
-                {filterTone ? (
-                  <ul className="sum-filter-list">
-                    {(summary[filterTone] ?? []).length === 0 ? (
-                      <li className="muted">موردی در این وضعیت نیست.</li>
-                    ) : (
-                      summary[filterTone].map((item) => (
-                        <li key={`${item.section}-${item.text}`}>
-                          <strong>{item.section}</strong>
-                          <div>{item.text}</div>
-                          <button
-                            type="button"
-                            className="btn btn-ghost"
-                            style={{ marginTop: 6 }}
-                            onClick={() => {
-                              const idx = steps.findIndex(
-                                (s) =>
-                                  s.key === 'section' &&
-                                  s.title === item.section,
-                              )
-                              if (idx >= 0) setStep(idx)
-                            }}
-                          >
-                            برو به بخش
-                            <ChevronLeft size={14} />
-                          </button>
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                ) : null}
-
-                <div className="insight-grid">
-                  <div className="scores-panel">
-                    <div className="panel-title">
-                      <div>
-                        <h3>شاخص‌های کلیدی</h3>
-                        <p>از دادهٔ زنده SmartBi در همین بازه</p>
-                      </div>
-                      <span className="positive-badge">
-                        {toFaDigits(readyCount)}/{toFaDigits(featureIds.length)} آماده
-                      </span>
-                    </div>
-                    <div className="rings">
-                      <ScoreRing
-                        progress={subRing?.progress ?? 0}
-                        displayValue={subRing?.value ?? '—'}
-                        label="اشتراک‌گیری"
-                      />
-                      <ScoreRing
-                        progress={engRing?.progress ?? 0}
-                        displayValue={engRing?.value ?? '—'}
-                        label="مشارکت"
-                      />
-                      <ScoreRing
-                        progress={
-                          custRing
-                            ? Math.min(100, (custRing.progress / 50) || 0)
-                            : 0
-                        }
-                        displayValue={custRing?.value ?? '—'}
-                        label="مشتریان"
-                      />
-                    </div>
-                  </div>
-                  <div className="recommendation">
-                    <span className="recommendation-icon">
-                      <Sparkles size={20} />
-                    </span>
-                    <div>
-                      <span>پیشنهاد شروع صحبت</span>
-                      <h3>
-                        {summary.bad.length > 0
-                          ? 'اول موارد نیازمند اقدام را مطرح کنید'
-                          : summary.warn.length > 0
-                            ? 'روی نقاط قابل بهبود تمرکز کنید'
-                            : 'نقاط قوت را برجسته کنید'}
-                      </h3>
-                      <p>{topHint}</p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const idx = steps.findIndex((s) => s.key === 'section')
-                          if (idx >= 0) setStep(idx)
-                        }}
-                      >
-                        شروع مرور بخش‌ها
-                        <ChevronLeft size={16} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="reports-section" style={{ marginTop: 15, padding: 0, border: 0, boxShadow: 'none', background: 'transparent' }}>
-                  <div className="reports-title">
-                    <div>
-                      <h2>بخش‌های گزارش</h2>
-                      <p>وضعیت هر بخش بعد از بارگذاری داده مشخص می‌شود.</p>
-                    </div>
-                    <span>
-                      {toFaDigits(readyCount)} از {toFaDigits(featureIds.length)}
-                    </span>
-                  </div>
-                  <SummaryFeatureSlots
-                    featureIds={featureIds}
-                    catalog={catalog}
-                    sectionState={sectionState}
-                  />
-                </div>
-              </>
-            )}
-          </section>
+          featureIds.length === 0 ? (
+            <p className="muted">هیچ بخشی برای گزارش انتخاب نشده است.</p>
+          ) : (
+            <ReportSummaryView
+              sections={sections}
+              summary={summary}
+              loadingCount={loadingCount}
+              onFollowUps={() => goJourney('diag')}
+            />
+          )
         ) : null}
 
         {current.key === 'section'
@@ -1134,24 +892,32 @@ export function ReportPage() {
         ) : null}
       </section>
 
-      <div className="journey-nav">
-        <button
-          type="button"
-          className="btn btn-secondary"
-          disabled={safeStep === 0}
-          onClick={() => setStep(safeStep - 1)}
-        >
-          → قبلی
-        </button>
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={safeStep >= steps.length - 1}
-          onClick={() => setStep(safeStep + 1)}
-        >
-          بعدی ←
-        </button>
-      </div>
+      <footer className={rp.footer}>
+        <div className={rp.footerHint}>
+          <span style={{ color: '#668100' }}>{Ico.check}</span>
+          تغییرات به‌صورت خودکار ذخیره می‌شود
+        </div>
+        <div className={rp.footerActions}>
+          <button
+            type="button"
+            className={rp.btnGhost}
+            onClick={() => {
+              if (safeStep === 0) navigate('/')
+              else setStep(safeStep - 1)
+            }}
+          >
+            {safeStep === 0 ? 'بازگشت به ویزارد' : 'مرحله قبل'}
+          </button>
+          <button
+            type="button"
+            className={rp.btnPrimary}
+            onClick={goPrimary}
+          >
+            {Ico.arrow}
+            {primaryLabel}
+          </button>
+        </div>
+      </footer>
 
       <div className="export-host" aria-hidden="true">
         <div ref={exportRef}>
