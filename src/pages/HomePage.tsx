@@ -2,14 +2,15 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Ico } from '../components/make/icons'
 import type { BrandBranch } from '../data/types'
-import { loadHistory } from '../lib/history'
+import { useAuth } from '../lib/authContext'
 import { loadBrands, searchBrands } from '../lib/brands'
+import { loadHistory } from '../lib/history'
 import {
+  gregorianToJalali,
+  jalaliToGregorian,
   serializeJalali,
   toFaDigits,
   todayJalali,
-  jalaliToGregorian,
-  gregorianToJalali,
 } from '../lib/jalali'
 import {
   diagDefaultsForType,
@@ -17,7 +18,7 @@ import {
   loadReviewTypes,
   selectionForType,
 } from '../lib/storage'
-import { useAuth } from '../lib/authContext'
+import styles from './HomePage.module.css'
 
 type Step = 1 | 2 | 3
 
@@ -41,8 +42,6 @@ type WizardTemplate = {
   icon: 'spark' | 'check' | 'clock'
   recommended?: boolean
 }
-
-type WizardPeriod = { id: string; label: string }
 
 const STEPS = [
   { n: 1 as const, title: 'انتخاب مجموعه' },
@@ -81,12 +80,12 @@ const TEMPLATES: WizardTemplate[] = [
   },
 ]
 
-const PERIODS: WizardPeriod[] = [
+const PERIODS = [
   { id: 'today', label: 'امروز' },
   { id: '7d', label: '۷ روز گذشته' },
   { id: '30d', label: '۳۰ روز گذشته' },
   { id: 'custom', label: 'بازه دلخواه' },
-]
+] as const
 
 const TINTS = [
   { tint: '#d7ef8a', ink: '#4e6300' },
@@ -137,16 +136,25 @@ function periodQuery(periodId: string, fromDate: string, toDate: string) {
   return { period: 'custom', from: fromDate, to: toDate }
 }
 
+function tplIcon(kind: WizardTemplate['icon']): ReactNode {
+  if (kind === 'clock') return Ico.clock
+  if (kind === 'check') return Ico.check
+  return Ico.spark
+}
+
 export function HomePage() {
   const navigate = useNavigate()
   const { configReady } = useAuth()
   const [step, setStep] = useState<Step>(1)
   const [query, setQuery] = useState('')
   const [allBrands, setAllBrands] = useState<WizardBrand[]>([])
+  const [searchHits, setSearchHits] = useState<WizardBrand[]>([])
   const [brandId, setBrandId] = useState('')
   const [templateId, setTemplateId] = useState('quick')
   const [periodId, setPeriodId] = useState('7d')
-  const [fromDate, setFromDate] = useState(serializeJalali(subtractJalaliDays(7)))
+  const [fromDate, setFromDate] = useState(
+    serializeJalali(subtractJalaliDays(7)),
+  )
   const [toDate, setToDate] = useState(serializeJalali(todayJalali()))
   const [loadingBrands, setLoadingBrands] = useState(true)
 
@@ -186,13 +194,6 @@ export function HomePage() {
     }
   }, [configReady])
 
-  const brands = useMemo(() => {
-    if (!query.trim()) return allBrands.slice(0, 8)
-    // search across full catalog when typing
-    return allBrands
-  }, [allBrands, query])
-
-  const [searchHits, setSearchHits] = useState<WizardBrand[]>([])
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -210,7 +211,7 @@ export function HomePage() {
     }
   }, [query])
 
-  const visibleBrands = query.trim() ? searchHits : brands
+  const visibleBrands = query.trim() ? searchHits : allBrands.slice(0, 8)
   const brand =
     visibleBrands.find((b) => b.id === brandId) ||
     allBrands.find((b) => b.id === brandId) ||
@@ -231,13 +232,13 @@ export function HomePage() {
         ? 'تنظیم بازه گزارش'
         : 'شروع بررسی'
 
-  const last = loadHistory()[0]
+  const last = useMemo(() => loadHistory()[0], [configReady])
 
   const startReview = () => {
     if (!brand || !canNext) return
     const types = loadReviewTypes()
     const type =
-      types.find((t) => t.id === template.catalogId) ??
+      types.find((t) => t.id === template.catalogId) ||
       types.find((t) => t.id === 'quick')
     if (!type) return
     const catalog = loadFeatures()
@@ -264,289 +265,305 @@ export function HomePage() {
   }
 
   return (
-    <section className="stage">
-      {last ? (
-        <aside className="last-card">
-          <div className="last-card-kicker">
-            {Ico.clock}
-            آخرین بررسی
-          </div>
-          <div className="last-card-body">
-            {last.brandName || 'مجموعه'} · {last.typeTitle || 'گزارش'}
-          </div>
-          <button
-            type="button"
-            className="linkish"
-            style={{ marginTop: 8 }}
-            onClick={() =>
-              navigate(`/report/${last.typeId}/${last.branchId}?${last.query}`)
-            }
-          >
-            مشاهده ←
-          </button>
-        </aside>
-      ) : null}
-
-      <div className="hero">
-        <div className="eyebrow">بررسی جدید</div>
-        <h1>بیایید یک بررسی بسازیم</h1>
-        <p>
-          انتخاب مجموعه و قالب کمتر از یک دقیقه طول می‌کشد؛ بعد گزارش زنده را
-          می‌بینید.
-        </p>
+    <section className={styles.page}>
+      <div className={styles.head}>
+        <div className={styles.headMain}>
+          <div className={styles.eyebrow}>بررسی جدید</div>
+          <h1 className={styles.title}>بیایید یک بررسی بسازیم</h1>
+          <p className={styles.lead}>
+            انتخاب مجموعه و قالب کمتر از یک دقیقه طول می‌کشد؛ بعد گزارش زنده را
+            می‌بینید.
+          </p>
+        </div>
+        {last ? (
+          <aside className={styles.lastCard}>
+            <div className={styles.lastKicker}>
+              {Ico.clock}
+              آخرین بررسی
+            </div>
+            <div className={styles.lastBody}>
+              {last.brandName || 'مجموعه'} · {last.typeTitle || 'گزارش'}
+            </div>
+            <button
+              type="button"
+              className={styles.lastLink}
+              onClick={() =>
+                navigate(
+                  `/report/${last.typeId}/${last.branchId}?${last.query}`,
+                )
+              }
+            >
+              مشاهده ←
+            </button>
+          </aside>
+        ) : null}
       </div>
 
-      <div className="stepper stepper-bar">
+      <div className={styles.stepper} aria-label="مراحل بررسی">
         {STEPS.map((s, i) => {
           const active = step === s.n
           const doneStep = step > s.n
+          const stepClass = active
+            ? styles.stepActive
+            : doneStep
+              ? styles.stepDone
+              : styles.step
           return (
             <div key={s.n} style={{ display: 'contents' }}>
               <button
                 type="button"
-                className={`step ${active ? 'active' : ''} ${doneStep ? 'done' : ''}`}
+                className={stepClass}
                 onClick={() => {
                   if (s.n <= step) setStep(s.n)
                 }}
               >
-                <span className="dot">
+                <span className={styles.dot}>
                   {doneStep && !active ? Ico.check : toFaDigits(s.n)}
                 </span>
-                <span style={{ fontSize: 13 }}>{s.title}</span>
+                <span>{s.title}</span>
               </button>
               {i < STEPS.length - 1 ? (
-                <div className={`step-line ${step > s.n ? 'on' : ''}`} />
+                <div
+                  className={step > s.n ? styles.stepLineOn : styles.stepLine}
+                />
               ) : null}
             </div>
           )
         })}
       </div>
 
-      <div className="panel-wrap">
-        {step === 1 ? (
-          <div className="panel">
-            <div className="panel-head">
-              <div className="panel-icon">{Ico.store}</div>
-              <div>
-                <h2>کدام مجموعه را بررسی می‌کنید؟</h2>
-                <div className="sub">نام مجموعه یا شعبه را جست‌وجو کنید</div>
+      {step === 1 ? (
+        <div className={styles.panel}>
+          <div className={styles.panelHead}>
+            <div className={styles.panelIcon}>{Ico.store}</div>
+            <div>
+              <h2>کدام مجموعه را بررسی می‌کنید؟</h2>
+              <div className={styles.panelSub}>
+                نام مجموعه یا شعبه را جست‌وجو کنید
               </div>
             </div>
-            <label className="search">
-              <span className="mag">{Ico.search}</span>
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="جست‌وجوی نام مجموعه یا شعبه…"
-              />
-              <kbd>⌘ K</kbd>
-            </label>
-            <div className="recent-label">
-              {query.trim() ? 'نتایج جست‌وجو' : 'شعبه‌های اخیر'}
-            </div>
-            {loadingBrands ? (
-              <p className="muted">در حال بارگذاری مجموعه‌ها…</p>
-            ) : (
-              <div className="grid-2">
-                {visibleBrands.map((b) => {
-                  const on = b.id === brandId
-                  return (
-                    <button
-                      key={b.id}
-                      type="button"
-                      className={`pick ${on ? 'on' : ''}`}
-                      onClick={() => setBrandId(b.id)}
-                    >
-                      <div className="pick-row">
-                        <div
-                          className="avatar"
-                          style={{ background: b.tint, color: b.ink }}
-                        >
-                          {b.initials}
-                        </div>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div className="pick-title">{b.name}</div>
-                          <div className="pick-sub">{b.branch}</div>
-                        </div>
-                        <span className="radio">{on ? Ico.check : null}</span>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
           </div>
-        ) : null}
-
-        {step === 2 ? (
-          <div className="panel">
-            <div className="panel-head">
-              <div className="panel-icon round">{Ico.spark}</div>
-              <div>
-                <h2>چه نوع بررسی‌ای نیاز دارید؟</h2>
-                <div className="sub">
-                  قالب مناسب را براساس هدف بررسی انتخاب کنید.
-                </div>
-              </div>
-            </div>
-            <div className="tpl-grid">
-              {TEMPLATES.map((t) => {
-                const on = t.id === templateId
+          <label className={styles.search}>
+            <span>{Ico.search}</span>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="جست‌وجوی نام مجموعه یا شعبه…"
+            />
+            <kbd>⌘ K</kbd>
+          </label>
+          <div className={styles.recentLabel}>
+            {query.trim() ? 'نتایج جست‌وجو' : 'شعبه‌های اخیر'}
+          </div>
+          {loadingBrands ? (
+            <p className={styles.empty}>در حال بارگذاری مجموعه‌ها…</p>
+          ) : visibleBrands.length === 0 ? (
+            <p className={styles.empty}>مجموعه‌ای با این جست‌وجو پیدا نشد.</p>
+          ) : (
+            <div className={styles.brandGrid}>
+              {visibleBrands.map((b) => {
+                const on = b.id === brandId
                 return (
                   <button
-                    key={t.id}
+                    key={b.id}
                     type="button"
-                    className={`tpl-card ${on ? 'on' : ''} ${t.recommended ? 'reco' : ''}`}
-                    onClick={() => setTemplateId(t.id)}
+                    className={on ? styles.pickOn : styles.pick}
+                    onClick={() => setBrandId(b.id)}
                   >
-                    {t.recommended ? (
-                      <span className="tpl-badge">پیشنهاد دیدبان</span>
-                    ) : null}
-                    <div className="tpl-top">
-                      <span className={`radio ${on ? 'on' : ''}`}>
+                    <div className={styles.pickRow}>
+                      <div
+                        className={styles.avatar}
+                        style={{ background: b.tint, color: b.ink }}
+                      >
+                        {b.initials}
+                      </div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div className={styles.pickTitle}>{b.name}</div>
+                        <div className={styles.pickSub}>{b.branch}</div>
+                      </div>
+                      <span className={styles.radio}>
                         {on ? Ico.check : null}
                       </span>
-                      <span className="tpl-ico">{tplIcon(t.icon)}</span>
-                    </div>
-                    <div className="tpl-title">{t.title}</div>
-                    <div className="tpl-desc">{t.description}</div>
-                    <div className="tpl-meta">
-                      {toFaDigits(t.sections)} بخش - حدود{' '}
-                      {toFaDigits(t.minutes)} دقیقه
                     </div>
                   </button>
                 )
               })}
-            </div>
-          </div>
-        ) : null}
-
-        {step === 3 ? (
-          <div className="panel">
-            <div className="panel-head">
-              <div className="panel-icon">{Ico.cal}</div>
-              <div>
-                <h2>بازه گزارش را مشخص کنید</h2>
-                <div className="sub">
-                  یک بازه سریع انتخاب کنید یا تاریخ دلخواه وارد کنید
-                </div>
-              </div>
-            </div>
-            <div className="period-grid">
-              {PERIODS.map((p) => {
-                const on = p.id === periodId
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className={`period-card ${on ? 'on' : ''}`}
-                    onClick={() => setPeriodId(p.id)}
-                  >
-                    {on ? <span className="check">{Ico.check}</span> : null}
-                    {p.label}
-                  </button>
-                )
-              })}
-            </div>
-            {periodId === 'custom' ? (
-              <div className="grid-2" style={{ marginBottom: 16 }}>
-                <label className="pick" style={{ cursor: 'text' }}>
-                  <div className="pick-sub">از تاریخ</div>
-                  <input
-                    value={fromDate}
-                    onChange={(e) => setFromDate(e.target.value)}
-                    dir="ltr"
-                    className="naked-input"
-                    placeholder="1405/07/16"
-                  />
-                </label>
-                <label className="pick" style={{ cursor: 'text' }}>
-                  <div className="pick-sub">تا تاریخ</div>
-                  <input
-                    value={toDate}
-                    onChange={(e) => setToDate(e.target.value)}
-                    dir="ltr"
-                    className="naked-input"
-                    placeholder="1405/07/23"
-                  />
-                </label>
-              </div>
-            ) : null}
-            <div className="summary">
-              <div className="summary-item">
-                <div className="ico">{Ico.store}</div>
-                <div style={{ minWidth: 0 }}>
-                  <div className="lbl">مجموعه</div>
-                  <div className="val">{brand?.name || '—'}</div>
-                </div>
-              </div>
-              <div className="summary-item">
-                <div className="ico">{Ico.spark}</div>
-                <div style={{ minWidth: 0 }}>
-                  <div className="lbl">قالب بررسی</div>
-                  <div className="val">{template.title}</div>
-                </div>
-              </div>
-              <div className="summary-item">
-                <div className="ico">{Ico.cal}</div>
-                <div style={{ minWidth: 0 }}>
-                  <div className="lbl">بازه گزارش</div>
-                  <div className="val">
-                    {periodId === 'custom'
-                      ? `${fromDate} تا ${toDate}`
-                      : period.label}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </div>
-
-      <footer className="footer">
-        <div className="sel-brand">
-          {brand ? (
-            <>
-              <div
-                className="avatar"
-                style={{
-                  width: 40,
-                  height: 40,
-                  background: brand.tint,
-                  color: brand.ink,
-                }}
-              >
-                {brand.initials}
-              </div>
-              <div className="meta">
-                <div className="lbl">مجموعه انتخاب‌شده</div>
-                <div className="val">{brand.name}</div>
-              </div>
-            </>
-          ) : (
-            <div className="meta">
-              <div className="lbl">مجموعه انتخاب‌شده</div>
-              <div className="val">هنوز انتخاب نشده</div>
             </div>
           )}
         </div>
-        <div className="actions">
+      ) : null}
+
+      {step === 2 ? (
+        <div className={styles.panel}>
+          <div className={styles.panelHead}>
+            <div className={styles.panelIconRound}>{Ico.spark}</div>
+            <div>
+              <h2>چه نوع بررسی‌ای نیاز دارید؟</h2>
+              <div className={styles.panelSub}>
+                قالب مناسب را براساس هدف بررسی انتخاب کنید.
+              </div>
+            </div>
+          </div>
+          <div className={styles.templateGrid}>
+            {TEMPLATES.map((t) => {
+              const on = t.id === templateId
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={
+                    on ? styles.templateCardOn : styles.templateCard
+                  }
+                  onClick={() => setTemplateId(t.id)}
+                >
+                  {t.recommended ? (
+                    <span className={styles.templateBadge}>
+                      پیشنهاد دیدبان
+                    </span>
+                  ) : null}
+                  <div className={styles.templateTop}>
+                    <span className={styles.radio}>
+                      {on ? Ico.check : null}
+                    </span>
+                    <span className={styles.templateIco}>
+                      {tplIcon(t.icon)}
+                    </span>
+                  </div>
+                  <div className={styles.templateTitle}>{t.title}</div>
+                  <div className={styles.templateDesc}>{t.description}</div>
+                  <div className={styles.templateMeta}>
+                    {toFaDigits(t.sections)} بخش - حدود{' '}
+                    {toFaDigits(t.minutes)} دقیقه
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {step === 3 ? (
+        <div className={styles.panel}>
+          <div className={styles.panelHead}>
+            <div className={styles.panelIcon}>{Ico.cal}</div>
+            <div>
+              <h2>بازه گزارش را مشخص کنید</h2>
+              <div className={styles.panelSub}>
+                یک بازه سریع انتخاب کنید یا تاریخ دلخواه وارد کنید
+              </div>
+            </div>
+          </div>
+          <div className={styles.periodGrid}>
+            {PERIODS.map((p) => {
+              const on = p.id === periodId
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={on ? styles.periodCardOn : styles.periodCard}
+                  onClick={() => setPeriodId(p.id)}
+                >
+                  {on ? (
+                    <span className={styles.periodCheck}>{Ico.check}</span>
+                  ) : null}
+                  {p.label}
+                </button>
+              )
+            })}
+          </div>
+          {periodId === 'custom' ? (
+            <div className={styles.customRow}>
+              <label className={styles.customField}>
+                <div className={styles.pickSub}>از تاریخ</div>
+                <input
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  dir="ltr"
+                  className={styles.nakedInput}
+                  placeholder="1405/07/16"
+                />
+              </label>
+              <label className={styles.customField}>
+                <div className={styles.pickSub}>تا تاریخ</div>
+                <input
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  dir="ltr"
+                  className={styles.nakedInput}
+                  placeholder="1405/07/23"
+                />
+              </label>
+            </div>
+          ) : null}
+          <div className={styles.summary}>
+            <div className={styles.summaryItem}>
+              <div className={styles.summaryIco}>{Ico.store}</div>
+              <div style={{ minWidth: 0 }}>
+                <div className={styles.summaryLbl}>مجموعه</div>
+                <div className={styles.summaryVal}>{brand?.name || '—'}</div>
+              </div>
+            </div>
+            <div className={styles.summaryItem}>
+              <div className={styles.summaryIco}>{Ico.spark}</div>
+              <div style={{ minWidth: 0 }}>
+                <div className={styles.summaryLbl}>قالب بررسی</div>
+                <div className={styles.summaryVal}>{template.title}</div>
+              </div>
+            </div>
+            <div className={styles.summaryItem}>
+              <div className={styles.summaryIco}>{Ico.cal}</div>
+              <div style={{ minWidth: 0 }}>
+                <div className={styles.summaryLbl}>بازه گزارش</div>
+                <div className={styles.summaryVal}>
+                  {periodId === 'custom'
+                    ? `${fromDate} تا ${toDate}`
+                    : period.label}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <footer className={styles.footer}>
+        <div className={styles.selBrand}>
+          {brand ? (
+            <>
+              <div
+                className={styles.avatar}
+                style={{ background: brand.tint, color: brand.ink }}
+              >
+                {brand.initials}
+              </div>
+              <div className={styles.selMeta}>
+                <div className={styles.lbl}>مجموعه انتخاب‌شده</div>
+                <div className={styles.val}>{brand.name}</div>
+              </div>
+            </>
+          ) : (
+            <div className={styles.selMeta}>
+              <div className={styles.lbl}>مجموعه انتخاب‌شده</div>
+              <div className={styles.val}>هنوز انتخاب نشده</div>
+            </div>
+          )}
+        </div>
+        <div className={styles.actions}>
           {step > 1 ? (
             <button
               type="button"
-              className="btn btn-ghost"
+              className={styles.btnGhost}
               onClick={() => setStep((s) => (s - 1) as Step)}
             >
               مرحله قبل
             </button>
           ) : (
-            <span className="footer-hint">
+            <span className={styles.hint}>
               با انتخاب مجموعه، قالب‌های مناسب نمایش داده می‌شوند
             </span>
           )}
           <button
             type="button"
-            className="btn btn-primary"
+            className={styles.btnPrimary}
             disabled={!canNext}
             onClick={goNext}
           >
@@ -557,10 +574,4 @@ export function HomePage() {
       </footer>
     </section>
   )
-}
-
-function tplIcon(kind: WizardTemplate['icon']): ReactNode {
-  if (kind === 'clock') return Ico.clock
-  if (kind === 'check') return Ico.check
-  return Ico.spark
 }

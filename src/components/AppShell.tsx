@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { isStaff, roleLabel, useAuth } from '../lib/authContext'
 import { Ico } from './make/icons'
+import styles from './AppShell.module.css'
 
 function crumbFor(pathname: string) {
   if (pathname.startsWith('/users')) return 'کاربران'
@@ -27,11 +28,6 @@ export function AppShell() {
   const [mobileMenu, setMobileMenu] = useState(false)
 
   useEffect(() => {
-    document.body.classList.add('make-theme')
-    return () => document.body.classList.remove('make-theme')
-  }, [])
-
-  useEffect(() => {
     setMobileMenu(false)
   }, [location.pathname])
 
@@ -46,44 +42,30 @@ export function AppShell() {
   }
 
   return (
-    <div dir="ltr" className={`shell${mobileMenu ? ' shell-nav-open' : ''}`}>
-      <main className="main" dir="rtl">
-        <header className="topbar">
+    <div dir="ltr" className={styles.shell}>
+      <main className={styles.main} dir="rtl">
+        <header className={styles.topbar}>
           <div>
             <button
               type="button"
-              className="menu-button make-menu-btn"
+              className={styles.menuBtn}
               onClick={() => setMobileMenu(true)}
               aria-label="باز کردن منو"
             >
               ☰
             </button>
-            <span style={{ color: '#1a1c16', fontWeight: 600 }}>دیدبان</span>
-            <span style={{ margin: '0 8px', opacity: 0.35 }}>‹</span>
+            <span className={styles.crumbStrong}>دیدبان</span>
+            <span className={styles.crumbSep}>‹</span>
             <span>{crumb}</span>
           </div>
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                color: '#4e6300',
-              }}
-            >
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 99,
-                  background: '#668100',
-                }}
-              />
+          <div className={styles.topbarActions}>
+            <span className={styles.status}>
+              <span className={styles.statusDot} />
               سامانه فعال
             </span>
             <button
               type="button"
-              className="linkish"
+              className={styles.linkish}
               onClick={() => navigate('/help')}
             >
               {Ico.help}
@@ -91,7 +73,7 @@ export function AppShell() {
             </button>
           </div>
         </header>
-        <div className="page-content make-page">
+        <div className={styles.content}>
           <Outlet />
         </div>
       </main>
@@ -99,33 +81,25 @@ export function AppShell() {
       {mobileMenu ? (
         <button
           type="button"
-          className="overlay"
+          className={styles.overlay}
           onClick={() => setMobileMenu(false)}
           aria-label="بستن منو"
         />
       ) : null}
 
-      <aside className={`sidebar${mobileMenu ? ' sidebar-open' : ''}`} dir="rtl">
-        <div
-          style={{
-            padding: 18,
-            display: 'flex',
-            gap: 12,
-            alignItems: 'center',
-          }}
-        >
-          <div className="brand-mark">{Ico.chart}</div>
+      <aside
+        className={mobileMenu ? styles.sidebarOpen : styles.sidebar}
+        dir="rtl"
+      >
+        <div className={styles.brandRow}>
+          <div className={styles.brandMark}>{Ico.chart}</div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 800, fontSize: 17, lineHeight: 1 }}>
-              دیدبان
-            </div>
-            <div style={{ fontSize: 11, color: '#5c5f52', marginTop: 6 }}>
-              صدای مشتری اسمارت
-            </div>
+            <div className={styles.brandTitle}>دیدبان</div>
+            <div className={styles.brandSub}>صدای مشتری اسمارت</div>
           </div>
           <button
             type="button"
-            className="mobile-close"
+            className={styles.closeBtn}
             onClick={() => setMobileMenu(false)}
             aria-label="بستن منو"
           >
@@ -133,27 +107,18 @@ export function AppShell() {
           </button>
         </div>
 
-        <div
-          style={{
-            padding: '0 14px',
-            fontSize: 11,
-            color: '#8a8d7f',
-            marginBottom: 6,
-          }}
-        >
-          منوی اصلی
-        </div>
-        <nav style={{ padding: '0 10px', display: 'grid', gap: 2 }}>
+        <div className={styles.sectionLabel}>منوی اصلی</div>
+        <nav className={styles.nav} aria-label="منوی اصلی">
           {MAIN_NAV.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
               className={({ isActive }) =>
-                `nav-item${isActive ? ' active' : ''}`
+                isActive ? styles.navItemActive : styles.navItem
               }
             >
-              <span className="left">
+              <span className={styles.navLeft}>
                 {item.icon}
                 {item.label}
               </span>
@@ -163,23 +128,15 @@ export function AppShell() {
 
         {isStaff(user?.role) ? (
           <>
-            <div
-              style={{
-                padding: '18px 14px 6px',
-                fontSize: 11,
-                color: '#8a8d7f',
-              }}
-            >
-              مدیریت
-            </div>
-            <nav style={{ padding: '0 10px', display: 'grid', gap: 2 }}>
+            <div className={styles.sectionLabelSpaced}>مدیریت</div>
+            <nav className={styles.nav} aria-label="مدیریت">
               <NavLink
                 to="/admin"
                 className={({ isActive }) =>
-                  `nav-item${isActive ? ' active' : ''}`
+                  isActive ? styles.navItemActive : styles.navItem
                 }
               >
-                <span className="left">
+                <span className={styles.navLeft}>
                   {Ico.gear}
                   تنظیمات بررسی
                 </span>
@@ -187,10 +144,10 @@ export function AppShell() {
               <NavLink
                 to="/users"
                 className={({ isActive }) =>
-                  `nav-item${isActive ? ' active' : ''}`
+                  isActive ? styles.navItemActive : styles.navItem
                 }
               >
-                <span className="left">
+                <span className={styles.navLeft}>
                   {Ico.users}
                   کاربران
                 </span>
@@ -199,38 +156,15 @@ export function AppShell() {
           </>
         ) : null}
 
-        <div
-          style={{
-            marginTop: 'auto',
-            padding: 16,
-            borderTop: '1px solid #e8ebdd',
-            display: 'flex',
-            gap: 10,
-            alignItems: 'center',
-          }}
-        >
-          <div
-            className="avatar"
-            style={{
-              background: '#c6f264',
-              color: '#4e6300',
-              width: 40,
-              height: 40,
-            }}
-          >
-            {initials}
-          </div>
+        <div className={styles.userRow}>
+          <div className={styles.avatar}>{initials}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 700 }}>
-              {user?.displayName || user?.username}
-            </div>
-            <div style={{ fontSize: 11, color: '#5c5f52' }}>
-              {roleLabel(user?.role)}
-            </div>
+            <strong>{user?.displayName || user?.username}</strong>
+            <div className={styles.userRole}>{roleLabel(user?.role)}</div>
           </div>
           <button
             type="button"
-            className="linkish"
+            className={styles.linkish}
             onClick={() => void onLogout()}
             aria-label="خروج"
             title="خروج"
