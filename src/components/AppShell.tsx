@@ -1,52 +1,24 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  BarChart3,
-  CircleHelp,
-  FileText,
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  Settings,
-  TrendingUp,
-  Users,
-  X,
-} from 'lucide-react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { isStaff, roleLabel, useAuth } from '../lib/authContext'
-import { formatJalaliLong, todayJalali } from '../lib/jalali'
+import { Ico } from './make/icons'
 
-const NAV = [
-  { to: '/', label: 'بررسی جدید', end: true, icon: LayoutDashboard },
-  { to: '/reports', label: 'گزارش‌ها', end: false, icon: BarChart3 },
-  { to: '/help', label: 'راهنما', end: false, icon: CircleHelp },
-] as const
-
-function titleFor(pathname: string) {
-  if (pathname.startsWith('/users')) return 'مدیریت کاربران'
+function crumbFor(pathname: string) {
+  if (pathname.startsWith('/users')) return 'کاربران'
   if (pathname.startsWith('/reports')) return 'صندوق گزارش‌ها'
-  if (pathname.startsWith('/admin')) return 'تنظیمات انواع بررسی'
+  if (pathname.startsWith('/admin')) return 'تنظیمات بررسی'
   if (pathname.startsWith('/history')) return 'گزارش‌های این مرورگر'
-  if (pathname.startsWith('/help')) return 'راهنمای استفاده'
+  if (pathname.startsWith('/help')) return 'راهنما'
   if (pathname.startsWith('/setup')) return 'تنظیم بررسی'
-  if (pathname.startsWith('/report')) return 'گزارش تجربه مشتری'
-  return 'نمای کلی بررسی'
+  if (pathname.startsWith('/report')) return 'گزارش زنده'
+  return 'بررسی جدید'
 }
 
-function subtitleFor(pathname: string) {
-  if (pathname.startsWith('/report')) {
-    return 'نمایی سریع از وضعیت عملکرد و بازخورد مشتریان'
-  }
-  if (pathname.startsWith('/admin')) {
-    return 'ویژگی‌ها، آستانه‌ها و قالب پیام روی سرور'
-  }
-  if (pathname.startsWith('/reports')) {
-    return 'همه گزارش‌های تیم · فیلتر کاربر و مرحله'
-  }
-  if (pathname.startsWith('/history')) {
-    return 'گزارش‌های ذخیره‌شده روی این مرورگر'
-  }
-  return 'پنل کنترل کیفیت اسمارت · دیدبان'
-}
+const MAIN_NAV = [
+  { to: '/', label: 'بررسی جدید', end: true, icon: Ico.home },
+  { to: '/reports', label: 'گزارش‌ها', end: false, icon: Ico.doc },
+  { to: '/help', label: 'راهنما', end: false, icon: Ico.help },
+] as const
 
 export function AppShell() {
   const location = useLocation()
@@ -55,23 +27,15 @@ export function AppShell() {
   const [mobileMenu, setMobileMenu] = useState(false)
 
   useEffect(() => {
-    document.body.classList.add('rd-theme')
-    return () => document.body.classList.remove('rd-theme')
+    document.body.classList.add('make-theme')
+    return () => document.body.classList.remove('make-theme')
   }, [])
 
   useEffect(() => {
     setMobileMenu(false)
   }, [location.pathname])
 
-  const title = useMemo(
-    () => titleFor(location.pathname),
-    [location.pathname],
-  )
-  const subtitle = useMemo(
-    () => subtitleFor(location.pathname),
-    [location.pathname],
-  )
-
+  const crumb = useMemo(() => crumbFor(location.pathname), [location.pathname])
   const initials = (user?.displayName || user?.username || '؟')
     .trim()
     .slice(0, 2)
@@ -82,92 +46,55 @@ export function AppShell() {
   }
 
   return (
-    <div dir="rtl" className="app-shell">
-      <aside className={`sidebar${mobileMenu ? ' sidebar-open' : ''}`}>
-        <div className="brand">
-          <div className="brand-mark">
-            <TrendingUp size={22} strokeWidth={2.2} />
-          </div>
+    <div dir="ltr" className={`shell${mobileMenu ? ' shell-nav-open' : ''}`}>
+      <main className="main" dir="rtl">
+        <header className="topbar">
           <div>
-            <strong>دیدبان</strong>
-            <span>صدای مشتری</span>
-          </div>
-          <button
-            type="button"
-            className="mobile-close"
-            onClick={() => setMobileMenu(false)}
-            aria-label="بستن منو"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        <nav className="side-nav" aria-label="منوی اصلی">
-          <p>فضای کاری</p>
-          {NAV.map(({ to, label, end, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              className={({ isActive }) => (isActive ? 'active' : undefined)}
+            <button
+              type="button"
+              className="menu-button make-menu-btn"
+              onClick={() => setMobileMenu(true)}
+              aria-label="باز کردن منو"
             >
-              <Icon size={19} />
-              <span>{label}</span>
-            </NavLink>
-          ))}
-          {isStaff(user?.role) ? (
-            <>
-              <NavLink
-                to="/admin"
-                className={({ isActive }) => (isActive ? 'active' : undefined)}
-              >
-                <Settings size={19} />
-                <span>تنظیمات بررسی</span>
-              </NavLink>
-              <NavLink
-                to="/users"
-                className={({ isActive }) => (isActive ? 'active' : undefined)}
-              >
-                <Users size={19} />
-                <span>کاربران</span>
-              </NavLink>
-            </>
-          ) : null}
-        </nav>
-
-        <div className="sidebar-help">
-          <CircleHelp size={21} />
-          <strong>به راهنمایی نیاز دارید؟</strong>
-          <span>مرکز راهنمای دیدبان برای بررسی‌های QC در دسترس است.</span>
-          <button type="button" onClick={() => navigate('/help')}>
-            مشاهده راهنما
-          </button>
-        </div>
-
-        <div className="user-card">
-          <div className="avatar">{initials}</div>
-          <div>
-            <strong>{user?.displayName || user?.username}</strong>
-            <span>{roleLabel(user?.role)}</span>
+              ☰
+            </button>
+            <span style={{ color: '#1a1c16', fontWeight: 600 }}>دیدبان</span>
+            <span style={{ margin: '0 8px', opacity: 0.35 }}>‹</span>
+            <span>{crumb}</span>
           </div>
-          <button
-            type="button"
-            className="icon-button"
-            style={{
-              width: 32,
-              height: 32,
-              background: 'transparent',
-              border: '0',
-              color: '#74968f',
-            }}
-            aria-label="خروج"
-            title="خروج"
-            onClick={() => void onLogout()}
-          >
-            <LogOut size={16} />
-          </button>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                color: '#4e6300',
+              }}
+            >
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 99,
+                  background: '#668100',
+                }}
+              />
+              سامانه فعال
+            </span>
+            <button
+              type="button"
+              className="linkish"
+              onClick={() => navigate('/help')}
+            >
+              {Ico.help}
+              راهنمای این صفحه
+            </button>
+          </div>
+        </header>
+        <div className="page-content make-page">
+          <Outlet />
         </div>
-      </aside>
+      </main>
 
       {mobileMenu ? (
         <button
@@ -178,37 +105,140 @@ export function AppShell() {
         />
       ) : null}
 
-      <main className="main-content">
-        <header className="topbar">
-          <div className="topbar-title">
-            <button
-              type="button"
-              className="menu-button"
-              onClick={() => setMobileMenu(true)}
-              aria-label="باز کردن منو"
-            >
-              <Menu size={22} />
-            </button>
-            <div>
-              <h1>{title}</h1>
-              <p>{subtitle}</p>
+      <aside className={`sidebar${mobileMenu ? ' sidebar-open' : ''}`} dir="rtl">
+        <div
+          style={{
+            padding: 18,
+            display: 'flex',
+            gap: 12,
+            alignItems: 'center',
+          }}
+        >
+          <div className="brand-mark">{Ico.chart}</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 800, fontSize: 17, lineHeight: 1 }}>
+              دیدبان
+            </div>
+            <div style={{ fontSize: 11, color: '#5c5f52', marginTop: 6 }}>
+              صدای مشتری اسمارت
             </div>
           </div>
-          <div className="topbar-actions">
-            <span className="updated-at">{formatJalaliLong(todayJalali())}</span>
-            {location.pathname.startsWith('/report') ? (
-              <span className="export-button" style={{ pointerEvents: 'none' }}>
-                <FileText size={18} />
-                گزارش زنده
-              </span>
-            ) : null}
-          </div>
-        </header>
-
-        <div className="page-content">
-          <Outlet />
+          <button
+            type="button"
+            className="mobile-close"
+            onClick={() => setMobileMenu(false)}
+            aria-label="بستن منو"
+          >
+            ×
+          </button>
         </div>
-      </main>
+
+        <div
+          style={{
+            padding: '0 14px',
+            fontSize: 11,
+            color: '#8a8d7f',
+            marginBottom: 6,
+          }}
+        >
+          منوی اصلی
+        </div>
+        <nav style={{ padding: '0 10px', display: 'grid', gap: 2 }}>
+          {MAIN_NAV.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) =>
+                `nav-item${isActive ? ' active' : ''}`
+              }
+            >
+              <span className="left">
+                {item.icon}
+                {item.label}
+              </span>
+            </NavLink>
+          ))}
+        </nav>
+
+        {isStaff(user?.role) ? (
+          <>
+            <div
+              style={{
+                padding: '18px 14px 6px',
+                fontSize: 11,
+                color: '#8a8d7f',
+              }}
+            >
+              مدیریت
+            </div>
+            <nav style={{ padding: '0 10px', display: 'grid', gap: 2 }}>
+              <NavLink
+                to="/admin"
+                className={({ isActive }) =>
+                  `nav-item${isActive ? ' active' : ''}`
+                }
+              >
+                <span className="left">
+                  {Ico.gear}
+                  تنظیمات بررسی
+                </span>
+              </NavLink>
+              <NavLink
+                to="/users"
+                className={({ isActive }) =>
+                  `nav-item${isActive ? ' active' : ''}`
+                }
+              >
+                <span className="left">
+                  {Ico.users}
+                  کاربران
+                </span>
+              </NavLink>
+            </nav>
+          </>
+        ) : null}
+
+        <div
+          style={{
+            marginTop: 'auto',
+            padding: 16,
+            borderTop: '1px solid #e8ebdd',
+            display: 'flex',
+            gap: 10,
+            alignItems: 'center',
+          }}
+        >
+          <div
+            className="avatar"
+            style={{
+              background: '#c6f264',
+              color: '#4e6300',
+              width: 40,
+              height: 40,
+            }}
+          >
+            {initials}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700 }}>
+              {user?.displayName || user?.username}
+            </div>
+            <div style={{ fontSize: 11, color: '#5c5f52' }}>
+              {roleLabel(user?.role)}
+            </div>
+          </div>
+          <button
+            type="button"
+            className="linkish"
+            onClick={() => void onLogout()}
+            aria-label="خروج"
+            title="خروج"
+          >
+            خروج
+          </button>
+        </div>
+      </aside>
     </div>
   )
 }

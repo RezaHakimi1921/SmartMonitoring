@@ -1,15 +1,14 @@
-@import url('https://fonts.googleapis.com/css2?family=Estedad:wght@400;500;600;700;800&display=swap');
-
-/* Redesign Dashboard UI — ported from Figma Make (no Tailwind runtime) */
+/* Redesign Dashboard UI — ported from Figma Make (no Tailwind runtime).
+   Do not load Estedad here — @smartx/design-system uses IRANYekanXFaNum. */
 :root {
-  --rd-ink: #172321;
-  --rd-muted: #7a8d89;
-  --rd-teal: #147d74;
-  --rd-teal-strong: #167d74;
-  --rd-sidebar: #0f302d;
-  --rd-surface: #f5f8f8;
+  --rd-ink: #1a1c16;
+  --rd-muted: #5c5f52;
+  --rd-teal: #668100;
+  --rd-teal-strong: #4e6300;
+  --rd-sidebar: #f3f6ea;
+  --rd-surface: #fafdf2;
   --rd-card: rgba(255, 255, 255, 0.94);
-  --rd-border: #e0e9e7;
+  --rd-border: #e8ebdd;
   --rd-nav-width: 252px;
 }
 
@@ -17,10 +16,10 @@ body.rd-theme {
   min-width: 320px;
   min-height: 100vh;
   color: var(--rd-ink);
-  font-family: 'Estedad', Vazirmatn, Tahoma, sans-serif;
+  font-family: 'IRANYekanXFaNum', 'IRANYekanX', Vazirmatn, Tahoma, sans-serif;
   font-synthesis: none;
   background:
-    radial-gradient(circle at 75% 0%, rgba(23, 135, 125, 0.06), transparent 25rem),
+    radial-gradient(circle at 75% 0%, rgba(102, 129, 0, 0.08), transparent 25rem),
     var(--rd-surface);
 }
 
@@ -49,12 +48,13 @@ body.rd-theme button {
 .app-shell {
   min-height: 100vh;
   background-image:
-    linear-gradient(rgba(18, 76, 71, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(18, 76, 71, 0.025) 1px, transparent 1px);
+    linear-gradient(rgba(102, 129, 0, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(102, 129, 0, 0.035) 1px, transparent 1px);
   background-size: 32px 32px;
 }
 
-.sidebar {
+/* Legacy shell only — Make UI uses `.shell > .sidebar` instead */
+.app-shell .sidebar {
   position: fixed;
   inset: 0 0 0 auto;
   z-index: 30;
@@ -62,11 +62,11 @@ body.rd-theme button {
   width: 252px;
   flex-direction: column;
   padding: 24px 16px 18px;
-  color: #d7e7e4;
+  color: var(--rd-ink);
   background:
-    radial-gradient(circle at 10% 8%, rgba(66, 187, 170, 0.18), transparent 14rem),
-    #0f302d;
-  border-left: 1px solid rgba(255, 255, 255, 0.06);
+    radial-gradient(circle at 10% 8%, rgba(198, 242, 100, 0.35), transparent 14rem),
+    var(--rd-sidebar);
+  border-left: 1px solid var(--rd-border);
 }
 
 .brand {
@@ -82,10 +82,10 @@ body.rd-theme button {
   height: 42px;
   place-items: center;
   color: white;
-  background: #1a8b80;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: linear-gradient(160deg, #7a9a10, #668100);
+  border: 1px solid rgba(102, 129, 0, 0.25);
   border-radius: 13px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 8px 20px rgba(102, 129, 0, 0.28);
 }
 
 .brand > div:nth-child(2) {
@@ -95,13 +95,13 @@ body.rd-theme button {
 }
 
 .brand strong {
-  color: white;
+  color: var(--rd-ink);
   font-size: 19px;
   font-weight: 800;
 }
 
 .brand span {
-  color: #93b4ae;
+  color: var(--rd-muted);
   font-size: 11px;
 }
 
@@ -109,7 +109,7 @@ body.rd-theme button {
   display: none;
   margin-right: auto;
   padding: 8px;
-  color: #c8dcd8;
+  color: var(--rd-muted);
 }
 
 .side-nav {
@@ -120,7 +120,7 @@ body.rd-theme button {
 
 .side-nav > p {
   margin: 0 12px 6px;
-  color: #6f9b94;
+  color: #8a8d7f;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -133,7 +133,7 @@ body.rd-theme button {
   gap: 12px;
   width: 100%;
   padding: 11px 13px;
-  color: #a9c3be;
+  color: var(--rd-muted);
   background: transparent;
   border: 1px solid transparent;
   border-radius: 10px;
@@ -146,16 +146,17 @@ body.rd-theme button {
 
 .side-nav > button:hover,
 .side-nav > a:hover {
-  color: white;
-  background: rgba(255, 255, 255, 0.055);
+  color: var(--rd-ink);
+  background: rgba(102, 129, 0, 0.06);
 }
 
 .side-nav > button.active,
 .side-nav > a.active {
-  color: white;
-  background: rgba(35, 155, 142, 0.18);
-  border-color: rgba(62, 188, 172, 0.2);
-  box-shadow: inset -3px 0 #35b5a6;
+  color: var(--rd-teal-strong);
+  background: rgba(102, 129, 0, 0.12);
+  border-color: rgba(102, 129, 0, 0.22);
+  box-shadow: inset 3px 0 #668100;
+  font-weight: 700;
 }
 
 .side-nav > button b,
@@ -163,8 +164,8 @@ body.rd-theme button {
   min-width: 22px;
   margin-right: auto;
   padding: 2px 6px;
-  color: #d6f4ef;
-  background: rgba(54, 181, 166, 0.24);
+  color: var(--rd-teal-strong);
+  background: rgba(198, 242, 100, 0.55);
   border-radius: 20px;
   font-size: 10px;
   text-align: center;
@@ -256,7 +257,7 @@ body.rd-theme button {
   margin-right: 252px;
 }
 
-.topbar {
+.app-shell .topbar {
   position: sticky;
   top: 0;
   z-index: 20;
@@ -369,10 +370,10 @@ body.rd-theme button {
   gap: 8px;
   padding: 10px 14px;
   color: white;
-  background: #167d74;
+  background: linear-gradient(160deg, #7a9a10, #668100);
   border: 0;
   border-radius: 10px;
-  box-shadow: 0 5px 14px rgba(22, 125, 116, 0.2);
+  box-shadow: 0 5px 14px rgba(102, 129, 0, 0.28);
   font-size: 11px;
   font-weight: 700;
 }
@@ -695,38 +696,69 @@ body.rd-theme button {
 .rings {
   display: flex;
   align-items: center;
-  justify-content: space-around;
+  justify-content: space-evenly;
+  gap: 12px;
   margin-top: 18px;
+  width: 100%;
+}
+
+.score-ring-wrap {
+  flex: 1 1 0;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
 }
 
 .score-ring {
+  position: relative;
   display: grid;
+  place-items: center;
   width: 86px;
   height: 86px;
-  place-items: center;
-  border-radius: 50%;
+}
+
+.score-ring-svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.score-ring-track {
+  stroke: #e2e8f0;
+}
+
+.score-ring-fill {
+  transition: stroke-dasharray 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .score-ring-center {
+  position: relative;
+  z-index: 1;
   display: flex;
-  width: 68px;
-  height: 68px;
+  width: 62px;
+  height: 62px;
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  background: #fbfcfc;
+  background: transparent;
   border-radius: 50%;
+  text-align: center;
+  padding: 2px;
 }
 
 .score-ring strong {
-  color: #203c37;
-  font-size: 15px;
+  color: var(--on-surface, #1e3a8a);
+  font-size: 13px;
   font-weight: 800;
+  line-height: 1.15;
+  direction: ltr;
+  unicode-bidi: plaintext;
 }
 
 .score-ring span {
-  color: #849490;
-  font-size: 8px;
+  color: var(--on-surface-variant, #64748b);
+  font-size: 9px;
+  margin-top: 2px;
 }
 
 .recommendation {

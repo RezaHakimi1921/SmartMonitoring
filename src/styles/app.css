@@ -1,5 +1,6 @@
 @import "./tokens.css";
 @import "./redesign.css";
+@import "./make-ui.css";
 
 *,
 *::before,
@@ -30,6 +31,9 @@ body {
   font-family: var(--font-primary);
   color: var(--on-surface);
   -webkit-font-smoothing: antialiased;
+  /* Safety if a face fails: never collapse word gaps */
+  word-spacing: normal;
+  letter-spacing: normal;
 }
 
 button,
@@ -1529,10 +1533,10 @@ a {
   color: var(--outline);
 }
 .cal-pop {
-  position: absolute;
-  z-index: 40;
-  top: calc(100% + 8px);
-  inset-inline-start: 0;
+  /* داخل جریان صفحه تا Card/Paper با overflow:hidden تقویم را نبرد */
+  position: relative;
+  z-index: 2;
+  margin-top: 8px;
   width: min(340px, 100%);
   padding: 12px;
   border-radius: var(--radius-lg);
