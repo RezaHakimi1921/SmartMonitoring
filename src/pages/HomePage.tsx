@@ -168,17 +168,26 @@ export function HomePage() {
         const recentIds = history
           .map((h) => String(h.branchId))
           .filter(Boolean)
-        const recent = recentIds
-          .map((id) => items.find((b) => String(b.branchId) === id))
-          .filter(Boolean) as BrandBranch[]
+        const seen = new Set<string>()
+        const recent: BrandBranch[] = []
+        for (const id of recentIds) {
+          if (seen.has(id)) continue
+          const hit = items.find((b) => String(b.branchId) === id)
+          if (!hit) continue
+          seen.add(id)
+          recent.push(hit)
+        }
         const seed =
           recent.length >= 4
             ? recent.slice(0, 8)
             : [
                 ...recent,
-                ...items.filter(
-                  (b) => !recentIds.includes(String(b.branchId)),
-                ),
+                ...items.filter((b) => {
+                  const id = String(b.branchId)
+                  if (seen.has(id)) return false
+                  seen.add(id)
+                  return true
+                }),
               ].slice(0, 8)
         const mapped = seed.map(toWizardBrand)
         setAllBrands(mapped)
