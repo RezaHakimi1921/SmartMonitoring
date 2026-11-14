@@ -1,0 +1,3 @@
+[submodule "vendor/smartx-web"]
+	path = vendor/smartx-web
+	url = https://git.smartx.ir:1000/front-end/smartx-web.git
