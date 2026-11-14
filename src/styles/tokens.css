@@ -1,27 +1,28 @@
 :root {
-  /* UUPM Analytics Dashboard (light) + Glassmorphism — Estedad for FA */
-  --font-primary: "Estedad", "Vazirmatn", "IRANYekanX", Tahoma, "Segoe UI", sans-serif;
+  /* Bridge tokens aligned with @smartx/design-system (legacy CSS until full sx migration) */
+  --font-primary: "IRANYekanXFaNum", "IRANYekanX", Tahoma, "Segoe UI", sans-serif;
 
-  --primary: #1e40af;
-  --primary-strong: #1e3a8a;
-  --primary-soft: rgba(30, 64, 175, 0.12);
+  /* Runtime theme primary ≈ #668100 (olive/lime SmartX) */
+  --primary: #668100;
+  --primary-strong: #4e6300;
+  --primary-soft: rgba(102, 129, 0, 0.12);
   --on-primary: #ffffff;
-  --primary-container: #dbeafe;
-  --on-primary-container: #1e3a8a;
+  --primary-container: #c6f264;
+  --on-primary-container: #1a2500;
 
-  --secondary: #3b82f6;
-  --secondary-container: #eff6ff;
-  --on-secondary-container: #1e3a8a;
+  --secondary: #55624c;
+  --secondary-container: #d8e7cb;
+  --on-secondary-container: #131f0d;
 
-  --surface: #f8fafc;
-  --surface-dim: #e9eef6;
-  --surface-glass: rgba(255, 255, 255, 0.72);
-  --surface-glass-strong: rgba(255, 255, 255, 0.88);
-  --surface-ink: #1e3a8a;
-  --on-surface: #1e3a8a;
-  --on-surface-variant: #475569;
-  --outline: #94a3b8;
-  --outline-variant: rgba(30, 64, 175, 0.14);
+  --surface: #fafdf2;
+  --surface-dim: #dadbd2;
+  --surface-glass: rgba(255, 255, 255, 0.85);
+  --surface-glass-strong: rgba(255, 255, 255, 0.94);
+  --surface-ink: #1a1c16;
+  --on-surface: #1a1c16;
+  --on-surface-variant: #45483c;
+  --outline: #75786b;
+  --outline-variant: rgba(117, 120, 107, 0.28);
 
   /* Glassmorphism (UUPM style checklist) */
   --blur-amount: 15px;

@@ -1,9 +1,17 @@
-import { Link } from 'react-router-dom'
+import { Link as RouterLink } from 'react-router-dom'
+import {
+  Box,
+  Button,
+  Card,
+  Chip,
+  Stack,
+  Typography,
+} from '@smartx/design-system'
 
 const STEPS = [
   {
     title: 'نوع بررسی را انتخاب کنید',
-    text: 'در صفحه اول، کارت بررسی مورد نظر را بزنید؛ مثلاً «بررسی سریع» یا «تماس بعد تمدید».',
+    text: 'در صفحه اول، کارت بررسی مورد نظر را بزنید؛ مثلاً «بررسی سریع» یا «بررسی پس از تحویل».',
   },
   {
     title: 'مجموعه و بازه را مشخص کنید',
@@ -42,45 +50,86 @@ const FAQ = [
   },
 ]
 
+const STEP_NUMS = ['۱', '۲', '۳', '۴']
+
 export function HelpPage() {
   return (
-    <div className="flow">
-      <header className="flow-head">
-        <h2>راهنمای استفاده</h2>
-        <p className="muted">ساخت گزارش برای مشتری فقط چهار قدم است.</p>
-      </header>
+    <Stack spacing={3}>
+      <Box>
+        <Typography variant="headlineSmall">راهنمای استفاده</Typography>
+        <Typography variant="bodyMedium" color="text.secondary">
+          ساخت گزارش برای مشتری فقط چهار قدم است.
+        </Typography>
+      </Box>
 
-      <ol className="help-steps">
+      <Stack
+        component="ol"
+        spacing={2}
+        sx={{ listStyle: 'none', m: 0, p: 0 }}
+      >
         {STEPS.map((s, i) => (
-          <li key={s.title} className="step-card">
-            <div className="step-title">
-              <span className="step-num">{['۱', '۲', '۳', '۴'][i]}</span>
-              <div>
-                <h3>{s.title}</h3>
-                <p className="muted">{s.text}</p>
-              </div>
-            </div>
-          </li>
+          <Card key={s.title} elevation={1} component="li" sx={{ p: 1 }}>
+            <Stack direction="row" spacing={1.5} alignItems="flex-start">
+              <Chip label={STEP_NUMS[i]} size="small" color="primary" />
+              <Box>
+                <Typography variant="titleMedium">{s.title}</Typography>
+                <Typography variant="bodySmall" color="text.secondary">
+                  {s.text}
+                </Typography>
+              </Box>
+            </Stack>
+          </Card>
         ))}
-      </ol>
+      </Stack>
 
-      <section className="step-card">
-        <h3 style={{ margin: 0 }}>سؤال‌های پرتکرار</h3>
-        <div className="faq">
+      <Card elevation={1} sx={{ p: 1 }} title="سؤال‌های پرتکرار">
+        <Stack spacing={1}>
           {FAQ.map((f) => (
-            <details key={f.q}>
-              <summary>{f.q}</summary>
-              <p>{f.a}</p>
-            </details>
+            <Box
+              key={f.q}
+              component="details"
+              sx={{
+                borderRadius: 2,
+                border: '1px solid',
+                borderColor: 'divider',
+                px: 1.5,
+                py: 1,
+                '&[open]': { bgcolor: 'grey.50' },
+              }}
+            >
+              <Box
+                component="summary"
+                sx={{
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  listStyle: 'none',
+                  '&::-webkit-details-marker': { display: 'none' },
+                }}
+              >
+                <Typography variant="titleSmall" component="span">
+                  {f.q}
+                </Typography>
+              </Box>
+              <Typography
+                variant="bodySmall"
+                color="text.secondary"
+                sx={{ mt: 1, display: 'block' }}
+              >
+                {f.a}
+              </Typography>
+            </Box>
           ))}
-        </div>
-      </section>
+        </Stack>
+      </Card>
 
-      <div className="actions">
-        <Link to="/" className="btn btn-primary">
-          شروع بررسی
-        </Link>
-      </div>
-    </div>
+      <Button
+        component={RouterLink}
+        to="/"
+        buttonVariant="filled"
+        sx={{ alignSelf: 'flex-start' }}
+      >
+        شروع بررسی
+      </Button>
+    </Stack>
   )
 }

@@ -1,10 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Link,
+  Link as RouterLink,
   useNavigate,
   useParams,
   useSearchParams,
 } from 'react-router-dom'
+import {
+  Box,
+  Button,
+  Card,
+  Chip,
+  Snackbar,
+  Stack,
+  Switch,
+  Typography,
+} from '@smartx/design-system'
 import { BrandSearch } from '../components/BrandSearch'
 import { ExportSheet } from '../components/ExportSheet'
 import { JalaliRangePicker } from '../components/JalaliRangePicker'
@@ -31,6 +41,7 @@ import {
 import {
   formatJalaliLong,
   serializeJalali,
+  parseFaNumber,
   toFaDigits,
   todayJalali,
 } from '../lib/jalali'
@@ -313,6 +324,7 @@ export function ReportPage() {
       stepIndex: safeStep,
       stepTotal: steps.length,
       query: queryString,
+      action: sentAt ? 'sent' : 'stage',
     }).catch(() => {
       /* لاگ سرور اختیاری است؛ تاریخچه محلی باقی می‌ماند */
     })
@@ -619,6 +631,7 @@ export function ReportPage() {
         stepTotal: steps.length,
         query: queryString,
         note,
+        action: 'unsent',
       }).catch(() => undefined)
       flash('ثبت ارسال لغو شد')
     } else {
@@ -639,6 +652,7 @@ export function ReportPage() {
         stepTotal: steps.length,
         query: queryString,
         note,
+        action: 'sent',
       }).catch(() => undefined)
       flash('به‌عنوان ارسال‌شده ثبت شد')
     }
@@ -646,12 +660,11 @@ export function ReportPage() {
 
   if (!type) {
     return (
-      <div className="panel">
-        <p>این گزارش پیدا نشد. لطفاً از ابتدا شروع کنید.</p>
-        <Link className="btn btn-secondary" to="/">
+      <Card elevation={1} title="این گزارش پیدا نشد. لطفاً از ابتدا شروع کنید.">
+        <Button component={RouterLink} to="/" buttonVariant="outlined">
           بازگشت به صفحه اول
-        </Link>
-      </div>
+        </Button>
+      </Card>
     )
   }
 
@@ -732,13 +745,15 @@ export function ReportPage() {
     if (st?.status !== 'ready') return null
     const m = st.section.metrics.find((x) => x.label.includes(labelPart))
     if (!m) return null
-    const n = Number(
-      String(m.value)
-        .replace(/[^\d.,]/g, '')
-        .replace(',', '.')
-        .replace(/[^\d.]/g, ''),
-    )
-    return { value: m.value, progress: Number.isFinite(n) ? n : 0 }
+    const n = parseFaNumber(m.value)
+    const isPercent = /[٪%]/.test(String(m.value))
+    // درصد همان progress؛ تعداد مطلق را نسبت به سقف معقول نرمال کن
+    const progress = !Number.isFinite(n)
+      ? 0
+      : isPercent
+        ? Math.max(0, Math.min(100, n))
+        : Math.max(0, Math.min(100, (Math.log10(n + 1) / Math.log10(10000)) * 100))
+    return { value: m.value, progress, raw: n, isPercent }
   }
   const subRing = ringFrom('subscription', 'اشتراک')
   const engRing = ringFrom('survey', 'نرخ')
@@ -749,167 +764,202 @@ export function ReportPage() {
     'بخش‌های گزارش را یکی‌یکی مرور کنید و موارد مهم را برای پیگیری علامت بزنید.'
 
   return (
-    <div className="flow report-flow" ref={topRef}>
-      <section className="period-bar">
-        <div>
-          <span>{type.title}</span>
-          <strong>
+    <Stack spacing={2} className="flow report-flow" ref={topRef}>
+      <Card
+        elevation={1}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 2,
+          flexWrap: 'wrap',
+          p: 1,
+        }}
+      >
+        <Box>
+          <Typography variant="labelMedium" color="primary">
+            {type.title}
+          </Typography>
+          <Typography variant="titleMedium">
             {place} · {rangeText}
-          </strong>
-        </div>
-        <div className="period-controls" style={{ gap: 0 }}>
-          <button
-            type="button"
-            aria-label="تغییر بازه"
+          </Typography>
+        </Box>
+        <Stack direction="row" spacing={1} flexWrap="wrap">
+          <Button
+            buttonVariant="outlined"
+            buttonSize="small"
+            aria-expanded={editing}
             onClick={() => setEditing((v) => !v)}
-            title="تغییر مجموعه یا بازه"
           >
-            {editing ? '✕' : '⚙'}
-          </button>
-        </div>
-      </section>
-
-      <div className="actions" style={{ marginBottom: 12, gap: 8 }}>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          aria-expanded={editing}
-          onClick={() => setEditing((v) => !v)}
-        >
-          {editing ? 'بستن تنظیمات' : 'تغییر مجموعه یا بازه'}
-        </button>
-        <button
-          type="button"
-          className="export-button"
-          disabled={busy || customIncomplete || loadingCount > 0}
-          onClick={() => void downloadPdf()}
-        >
-          <FileText size={18} />
-          {busy ? 'در حال ساخت…' : 'دانلود PDF'}
-        </button>
-      </div>
+            {editing ? 'بستن تنظیمات' : 'تغییر مجموعه یا بازه'}
+          </Button>
+          <Button
+            buttonVariant="filled"
+            buttonSize="small"
+            disabled={busy || customIncomplete || loadingCount > 0}
+            loading={busy}
+            startIcon={<FileText size={18} />}
+            onClick={() => void downloadPdf()}
+          >
+            دانلود PDF
+          </Button>
+        </Stack>
+      </Card>
 
       {editing ? (
-        <section className="step-card edit-panel">
-          <BrandSearch value={brandDraft} onChange={changeBrand} />
+        <Card elevation={1} sx={{ p: 1, overflow: 'visible' }}>
+          <Stack spacing={2.5}>
+            <BrandSearch value={brandDraft} onChange={changeBrand} />
 
-          <div>
-            <div className="field-label">بازه زمانی (تاریخ‌ها شمسی هستند)</div>
-            <div className="period-row">
-              {PERIOD_OPTIONS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  className={`period-chip${period === p.id ? ' active' : ''}`}
-                  aria-pressed={period === p.id}
-                  onClick={() => changePeriod(p.id)}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-            {period === 'custom' ? (
-              <div style={{ marginTop: 12 }}>
-                <JalaliRangePicker
-                  from={fromDate}
-                  to={toDate}
-                  onChange={changeRange}
-                />
-                {customIncomplete ? (
-                  <p className="flow-reason" style={{ textAlign: 'start' }}>
-                    تاریخ شروع و پایان را کامل انتخاب کنید.
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-
-          <div>
-            <div className="summary-row">
-              <span>
-                <strong>{toFaDigits(featureIds.length)} بخش</strong> و{' '}
-                <strong>{toFaDigits(diagIds.length)} نکته پیگیری</strong> در
-                گزارش است.
-              </span>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                aria-expanded={showOptions}
-                onClick={() => setShowOptions((v) => !v)}
+            <Box>
+              <Typography
+                variant="labelMedium"
+                color="text.secondary"
+                sx={{ mb: 1, display: 'block' }}
               >
-                {showOptions ? 'بستن فهرست' : 'انتخاب بخش‌ها'}
-              </button>
-            </div>
-            {showOptions ? (
-              <div style={{ marginTop: 12 }}>
-                <ReportOptions
-                  features={catalog}
-                  checked={new Set(featureIds)}
-                  required={requiredSet}
-                  diag={diagIds}
-                  onToggleFeature={toggleFeature}
-                  onSetCategory={setCategory}
-                  onToggleDiag={toggleDiag}
-                  onSetDiag={setDiag}
-                  onReset={() => {
-                    const defaults = Object.entries(type.features)
-                      .filter(([, m]) => m === 'required' || m === 'defaultOn')
-                      .map(([id]) => id as FeatureId)
-                    setFeatures(defaults)
-                    setDiag(DEFAULT_DIAG_IDS)
-                  }}
-                />
-              </div>
-            ) : null}
-          </div>
-        </section>
+                بازه زمانی (تاریخ‌ها شمسی هستند)
+              </Typography>
+              <Stack direction="row" flexWrap="wrap" gap={1}>
+                {PERIOD_OPTIONS.map((p) => (
+                  <Chip
+                    key={p.id}
+                    label={p.label}
+                    clickable
+                    color={period === p.id ? 'primary' : 'default'}
+                    variant={period === p.id ? 'filled' : 'outlined'}
+                    onClick={() => changePeriod(p.id)}
+                    aria-pressed={period === p.id}
+                  />
+                ))}
+              </Stack>
+              {period === 'custom' ? (
+                <Box sx={{ mt: 1.5 }}>
+                  <JalaliRangePicker
+                    from={fromDate}
+                    to={toDate}
+                    onChange={changeRange}
+                  />
+                  {customIncomplete ? (
+                    <Typography
+                      variant="bodySmall"
+                      color="error"
+                      sx={{ mt: 1, display: 'block' }}
+                    >
+                      تاریخ شروع و پایان را کامل انتخاب کنید.
+                    </Typography>
+                  ) : null}
+                </Box>
+              ) : null}
+            </Box>
+
+            <Box>
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                flexWrap="wrap"
+                gap={1}
+              >
+                <Typography variant="bodyMedium">
+                  <strong>{toFaDigits(featureIds.length)} بخش</strong> و{' '}
+                  <strong>{toFaDigits(diagIds.length)} نکته پیگیری</strong> در
+                  گزارش است.
+                </Typography>
+                <Button
+                  buttonVariant="outlined"
+                  buttonSize="small"
+                  aria-expanded={showOptions}
+                  onClick={() => setShowOptions((v) => !v)}
+                >
+                  {showOptions ? 'بستن فهرست' : 'انتخاب بخش‌ها'}
+                </Button>
+              </Stack>
+              {showOptions ? (
+                <Box sx={{ mt: 1.5 }}>
+                  <ReportOptions
+                    features={catalog}
+                    checked={new Set(featureIds)}
+                    required={requiredSet}
+                    diag={diagIds}
+                    onToggleFeature={toggleFeature}
+                    onSetCategory={setCategory}
+                    onToggleDiag={toggleDiag}
+                    onSetDiag={setDiag}
+                    onReset={() => {
+                      const defaults = Object.entries(type.features)
+                        .filter(
+                          ([, m]) => m === 'required' || m === 'defaultOn',
+                        )
+                        .map(([id]) => id as FeatureId)
+                      setFeatures(defaults)
+                      setDiag(DEFAULT_DIAG_IDS)
+                    }}
+                  />
+                </Box>
+              ) : null}
+            </Box>
+          </Stack>
+        </Card>
       ) : null}
 
-      <div className="tabs-row" role="tablist" aria-label="مراحل گزارش">
+      <Stack
+        direction="row"
+        flexWrap="wrap"
+        gap={1}
+        role="tablist"
+        aria-label="مراحل گزارش"
+      >
         {steps.map((s, i) => {
+          const selected = i === safeStep
           const tone =
             s.key === 'section'
               ? s.tone === 'bad'
-                ? '#ef4444'
+                ? 'error'
                 : s.tone === 'warn'
-                  ? '#e8911e'
+                  ? 'warning'
                   : s.tone === 'ok'
-                    ? '#169b72'
-                    : '#147d74'
-              : '#147d74'
+                    ? 'success'
+                    : 'primary'
+              : 'primary'
           return (
-            <button
+            <Chip
               key={`${s.key}-${i}`}
-              type="button"
-              className={i === safeStep ? 'selected' : ''}
+              label={s.title}
+              clickable
               role="tab"
-              aria-selected={i === safeStep}
+              aria-selected={selected}
+              color={selected ? (tone as 'primary') : 'default'}
+              variant={selected ? 'filled' : 'outlined'}
               onClick={() => setStep(i)}
-            >
-              <i style={{ backgroundColor: tone }} />
-              {s.title}
-            </button>
+            />
           )
         })}
-      </div>
+      </Stack>
 
-      <div className="filter-row">
-        <label>
-          <input
-            type="checkbox"
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        flexWrap="wrap"
+        gap={1}
+      >
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Switch
             checked={onlyAttention}
-            onChange={(e) => {
-              setOnlyAttention(e.target.checked)
+            onChange={(_, checked) => {
+              setOnlyAttention(checked)
               setStep(0)
             }}
+            inputProps={{ 'aria-label': 'فقط بخش‌های نیازمند توجه' }}
           />
-          <span className="custom-checkbox" />
-          فقط بخش‌های نیازمند توجه
-        </label>
-        <span>
+          <Typography variant="bodyMedium">
+            فقط بخش‌های نیازمند توجه
+          </Typography>
+        </Stack>
+        <Typography variant="bodySmall" color="text.secondary">
           مرحله {toFaDigits(safeStep + 1)} از {toFaDigits(steps.length)}
-        </span>
-      </div>
+        </Typography>
+      </Stack>
 
       <section className="section-block journey-body">
         {current.key === 'summary' ? (
@@ -1021,20 +1071,19 @@ export function ReportPage() {
                         progress={subRing?.progress ?? 0}
                         displayValue={subRing?.value ?? '—'}
                         label="اشتراک‌گیری"
+                        color="var(--success, #16a34a)"
                       />
                       <ScoreRing
                         progress={engRing?.progress ?? 0}
                         displayValue={engRing?.value ?? '—'}
                         label="مشارکت"
+                        color="var(--primary, #1e40af)"
                       />
                       <ScoreRing
-                        progress={
-                          custRing
-                            ? Math.min(100, (custRing.progress / 50) || 0)
-                            : 0
-                        }
+                        progress={custRing?.progress ?? 0}
                         displayValue={custRing?.value ?? '—'}
                         label="مشتریان"
+                        color="var(--secondary, #3b82f6)"
                       />
                     </div>
                   </div>
@@ -1134,26 +1183,24 @@ export function ReportPage() {
         ) : null}
       </section>
 
-      <div className="journey-nav">
-        <button
-          type="button"
-          className="btn btn-secondary"
+      <Stack direction="row" justifyContent="space-between" gap={1}>
+        <Button
+          buttonVariant="outlined"
           disabled={safeStep === 0}
           onClick={() => setStep(safeStep - 1)}
         >
           → قبلی
-        </button>
-        <button
-          type="button"
-          className="btn btn-primary"
+        </Button>
+        <Button
+          buttonVariant="filled"
           disabled={safeStep >= steps.length - 1}
           onClick={() => setStep(safeStep + 1)}
         >
           بعدی ←
-        </button>
-      </div>
+        </Button>
+      </Stack>
 
-      <div className="export-host" aria-hidden="true">
+      <Box className="export-host" aria-hidden="true">
         <div ref={exportRef}>
           <ExportSheet
             typeTitle={type.title}
@@ -1165,9 +1212,24 @@ export function ReportPage() {
             summary={summary}
           />
         </div>
-      </div>
+      </Box>
 
-      {toast ? <div className="toast">{toast}</div> : null}
-    </div>
+      <Box
+        sx={{
+          position: 'fixed',
+          bottom: 24,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1400,
+        }}
+      >
+        <Snackbar
+          open={!!toast}
+          message={toast}
+          severity="success"
+          onClose={() => setToast('')}
+        />
+      </Box>
+    </Stack>
   )
 }

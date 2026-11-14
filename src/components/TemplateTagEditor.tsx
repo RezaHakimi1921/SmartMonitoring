@@ -1,5 +1,14 @@
 import { useRef, useState } from 'react'
 import { Plus } from 'lucide-react'
+import {
+  Box,
+  Button,
+  Card,
+  Chip,
+  Stack,
+  Switch,
+  Typography,
+} from '@smartx/design-system'
 
 export type TemplateTag = {
   /** مقدار درج‌شونده در قالب، مثل {{brand}} */
@@ -61,52 +70,91 @@ export function TemplateTagEditor({
   }
 
   return (
-    <section className="template-editor glass-card">
-      <h3 className="panel-title">{title}</h3>
-      <p className="muted" style={{ marginTop: 0 }}>
+    <Card elevation={1} title={title} sx={{ p: 1 }}>
+      <Typography variant="bodySmall" color="text.secondary" sx={{ mb: 2 }}>
         روی <strong>+</strong> بزنید تا تگ در محل مکان‌نما درج شود.
-      </p>
+      </Typography>
 
-      <div className="param-tag-grid" dir="rtl">
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 1,
+          gridTemplateColumns: {
+            xs: '1fr',
+            sm: 'repeat(2, 1fr)',
+            md: 'repeat(3, 1fr)',
+          },
+          mb: 2,
+        }}
+        dir="rtl"
+      >
         {visible.map((t) => (
-          <div key={t.token} className="param-tag-cell">
-            <span className="param-tag-label">{t.label}</span>
-            <button
-              type="button"
-              className="param-tag-add"
+          <Stack
+            key={t.token}
+            direction="row"
+            alignItems="center"
+            spacing={1}
+            sx={{
+              p: 1,
+              borderRadius: 2,
+              border: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            <Typography variant="labelMedium" sx={{ flex: 1 }}>
+              {t.label}
+            </Typography>
+            <Button
+              buttonVariant="tonal"
+              buttonSize="small"
               title={`درج ${t.tag}`}
               aria-label={`درج ${t.label}`}
               onClick={() => insert(t.tag)}
+              sx={{ minWidth: 36, px: 1 }}
             >
               <Plus size={14} strokeWidth={2.5} />
-            </button>
-            <code className="param-tag-token">{t.tag}</code>
-          </div>
+            </Button>
+            <Chip label={t.tag} size="small" variant="outlined" />
+          </Stack>
         ))}
-      </div>
+      </Box>
 
       {tags.length > 8 ? (
-        <label className="toggle-field param-more">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={showAll}
-            className={`toggle${showAll ? ' on' : ''}`}
-            onClick={() => setShowAll((v) => !v)}
-          >
-            <span className="toggle-knob" />
-          </button>
-          <span>مشاهده سایر پارامترها</span>
-        </label>
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+          <Switch
+            checked={showAll}
+            onChange={(_, checked) => setShowAll(checked)}
+            inputProps={{ 'aria-label': 'مشاهده سایر پارامترها' }}
+          />
+          <Typography variant="bodyMedium">مشاهده سایر پارامترها</Typography>
+        </Stack>
       ) : null}
 
-      <textarea
+      <Box
+        component="textarea"
         ref={ref}
-        className="textarea message-edit"
         rows={10}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+          onChange(e.target.value)
+        }
+        sx={{
+          width: '100%',
+          boxSizing: 'border-box',
+          borderRadius: 2,
+          border: '1px solid',
+          borderColor: 'divider',
+          p: 1.5,
+          font: 'inherit',
+          resize: 'vertical',
+          bgcolor: 'background.paper',
+          '&:focus': {
+            outline: '2px solid',
+            outlineColor: 'primary.main',
+            outlineOffset: 1,
+          },
+        }}
       />
-    </section>
+    </Card>
   )
 }

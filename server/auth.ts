@@ -300,6 +300,45 @@ export function resetPassword(id: string, password: string): PublicUser {
   return toPublic(user)
 }
 
+/** هر کاربر فقط نام نمایشی و رمز خودش را عوض می‌کند */
+export function updateOwnProfile(
+  userId: string,
+  input: { displayName?: string; password?: string; currentPassword?: string },
+): PublicUser {
+  const store = ensureStore()
+  const user = store.users.find((u) => u.id === userId)
+  if (!user) throw Object.assign(new Error('کاربر پیدا نشد'), { status: 404 })
+
+  if (typeof input.displayName === 'string') {
+    const name = input.displayName.trim()
+    if (!name || name.length < 2) {
+      throw Object.assign(new Error('نام حداقل ۲ کاراکتر باشد'), { status: 400 })
+    }
+    user.displayName = name
+  }
+
+  if (typeof input.password === 'string' && input.password.length > 0) {
+    if (!input.currentPassword) {
+      throw Object.assign(new Error('رمز فعلی لازم است'), { status: 400 })
+    }
+    const cur = hashPassword(input.currentPassword, user.salt)
+    if (cur !== user.passwordHash) {
+      throw Object.assign(new Error('رمز فعلی اشتباه است'), { status: 400 })
+    }
+    if (input.password.length < 6) {
+      throw Object.assign(new Error('رمز جدید حداقل ۶ کاراکتر باشد'), {
+        status: 400,
+      })
+    }
+    user.salt = crypto.randomBytes(16).toString('hex')
+    user.passwordHash = hashPassword(input.password, user.salt)
+    store.sessions = store.sessions.filter((s) => s.userId !== userId)
+  }
+
+  saveStore(store)
+  return toPublic(user)
+}
+
 export function parseCookies(header: string | undefined) {
   const out: Record<string, string> = {}
   if (!header) return out

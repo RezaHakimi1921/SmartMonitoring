@@ -6,6 +6,7 @@ import {
   Routes,
   useLocation,
 } from 'react-router-dom'
+import { Box, LoadingSpinner, Typography } from '@smartx/design-system'
 import { AppShell } from './components/AppShell'
 import { isStaff, AuthProvider, useAuth } from './lib/authContext'
 import { AdminPage } from './pages/AdminPage'
@@ -17,15 +18,29 @@ import { ReportPage } from './pages/ReportPage'
 import { ReportsDashboardPage } from './pages/ReportsDashboardPage'
 import { SetupPage } from './pages/SetupPage'
 import { UsersPage } from './pages/UsersPage'
+import { FeedbackDetailPage } from './pages/FeedbackDetailPage'
+import { FeedbackNewPage } from './pages/FeedbackNewPage'
+import { FeedbackPage } from './pages/FeedbackPage'
+import { ProfilePage } from './pages/ProfilePage'
 
 function RequireAuth() {
   const { user, loading } = useAuth()
   const location = useLocation()
   if (loading) {
     return (
-      <div className="login-page">
-        <p className="muted">در حال بررسی نشست…</p>
-      </div>
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'grid',
+          placeItems: 'center',
+          gap: 2,
+        }}
+      >
+        <LoadingSpinner size="medium" />
+        <Typography variant="bodyMedium" color="text.secondary">
+          در حال بررسی نشست…
+        </Typography>
+      </Box>
     )
   }
   if (!user) {
@@ -65,6 +80,14 @@ export default function App() {
               <Route
                 path="reports-admin"
                 element={<Navigate to="/reports" replace />}
+              />
+              <Route path="feedback" element={<FeedbackPage />} />
+              <Route path="feedback/new" element={<FeedbackNewPage />} />
+              <Route path="feedback/:id" element={<FeedbackDetailPage />} />
+              <Route path="profile" element={<ProfilePage />} />
+              <Route
+                path="metric-sources"
+                element={<Navigate to="/admin?tab=metrics" replace />}
               />
               <Route path="history" element={<HistoryPage />} />
               <Route path="help" element={<HelpPage />} />

@@ -12,16 +12,29 @@
     "prod": "tsx server/prod.ts"
   },
   "devDependencies": {
+    "@smartx/configs": "file:vendor/smartx-web/packages/configs",
+    "@types/d3": "^7.4.3",
     "@types/mssql": "^12.3.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/react-router-dom": "^5.3.3",
+    "@types/stylis": "^4.2.7",
     "@vitejs/plugin-react": "^6.2.1",
     "typescript": "~7.0.2",
     "vite": "^8.3.5",
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@emotion/cache": "^11.14.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^5.18.0",
+    "@mui/material": "^5.18.0",
+    "@mui/stylis-plugin-rtl": "^7.3.10",
+    "@mui/x-date-pickers": "^8.29.5",
+    "@smartx/design-system": "file:vendor/smartx-web/packages/design-system",
+    "d3": "^7.9.2",
+    "date-fns-jalali": "^4.1.0-0",
     "dotenv": "^18.0.9",
     "html-to-image": "^1.11.13",
     "jspdf": "^4.2.1",
@@ -30,6 +43,7 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.5",
+    "stylis": "^4.4.0",
     "tsx": "^4.23.15"
   }
 }

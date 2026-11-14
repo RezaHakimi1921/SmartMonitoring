@@ -1,6 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { TrendingUp } from 'lucide-react'
 import { Navigate, useLocation } from 'react-router-dom'
+import {
+  Box,
+  Button,
+  Card,
+  Stack,
+  TextField,
+  Typography,
+} from '@smartx/design-system'
 import { useAuth } from '../lib/authContext'
 
 export function LoginPage() {
@@ -12,12 +19,11 @@ export function LoginPage() {
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    document.body.classList.add('rd-theme')
-    return () => document.body.classList.remove('rd-theme')
+    document.documentElement.dir = 'rtl'
+    document.body.dir = 'rtl'
   }, [])
 
-  const from =
-    (location.state as { from?: string } | null)?.from || '/'
+  const from = (location.state as { from?: string } | null)?.from || '/'
 
   if (!loading && user) {
     return <Navigate to={from} replace />
@@ -37,52 +43,62 @@ export function LoginPage() {
   }
 
   return (
-    <div className="login-page app-shell">
-      <form className="login-card overview-card" onSubmit={onSubmit}>
-        <div className="login-brand">
-          <div className="brand-mark">
-            <TrendingUp size={22} strokeWidth={2.2} />
-          </div>
-          <div>
-            <h1>ورود به دیدبان</h1>
-            <p className="muted">صدای مشتری · کنترل کیفیت اسمارت</p>
-          </div>
-        </div>
-
-        <label className="field">
-          <span>نام کاربری</span>
-          <input
-            autoComplete="username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            minLength={3}
-          />
-        </label>
-
-        <label className="field">
-          <span>رمز عبور</span>
-          <input
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-          />
-        </label>
-
-        {error ? <p className="form-error">{error}</p> : null}
-
-        <button
-          type="submit"
-          className="export-button"
-          style={{ width: '100%', justifyContent: 'center' }}
-          disabled={busy || loading}
-        >
-          {busy ? 'در حال ورود…' : 'ورود'}
-        </button>
-      </form>
-    </div>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'grid',
+        placeItems: 'center',
+        bgcolor: 'grey.100',
+        p: 2,
+      }}
+    >
+      <Card
+        elevation={3}
+        sx={{ width: '100%', maxWidth: 420, p: 1 }}
+        title="ورود به دیدبان"
+        subtitle="صدای مشتری · کنترل کیفیت اسمارت"
+      >
+        <Box component="form" onSubmit={onSubmit}>
+          <Stack spacing={2.5}>
+            <TextField
+              label="نام کاربری"
+              variant="outlined"
+              autoComplete="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              fullWidth
+              inputProps={{ minLength: 3 }}
+            />
+            <TextField
+              label="رمز عبور"
+              type="password"
+              variant="outlined"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              fullWidth
+              inputProps={{ minLength: 6 }}
+            />
+            {error ? (
+              <Typography variant="bodySmall" color="error">
+                {error}
+              </Typography>
+            ) : null}
+            <Button
+              type="submit"
+              buttonVariant="filled"
+              buttonSize="standard"
+              fullWidth
+              loading={busy || loading}
+              disabled={busy || loading}
+            >
+              {busy ? 'در حال ورود…' : 'ورود'}
+            </Button>
+          </Stack>
+        </Box>
+      </Card>
+    </Box>
   )
 }

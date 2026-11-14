@@ -47,7 +47,10 @@ export type BranchCtx = {
 }
 
 type FactAgg = {
+  /** تعداد سفارش نمایشی = Insight KPI totalInvoices ← Fact_SalesSummary.TotalOrders */
   FactureCount: number
+  /** مخرج درصد اشتراک Insight ← Fact_Subscription.MinFactureCount */
+  MinFactureCount: number
   SubCount: number
   PriceSum: number
   SurveyCount: number
@@ -139,8 +142,8 @@ const num = (v: unknown) => Number(v ?? 0) || 0
 /**
  * مبنای گزارش‌های عملکردی = SmartPowerBI (همان منبع Insight):
  * Fact_Subscription / Fact_SalesSummary / Fact_SatisfactionSummary /
- * BI_BranchLostCustomers / BI_BranchCredit
- * شارژ و قطع همچنان از Fact_Branch (DW).
+ * BI_BranchLostCustomers / BI_BranchCredit / V_BI_BranchSmsCharge
+ * قطع ارتباط همچنان از Fact_Branch (DW) — معادل PowerBI ندارد.
  */
 async function loadLiveMetrics(
   ctx: BranchCtx,
@@ -154,6 +157,7 @@ async function loadLiveMetrics(
 
   const empty: FactAgg = {
     FactureCount: 0,
+    MinFactureCount: 0,
     SubCount: 0,
     PriceSum: 0,
     SurveyCount: 0,
@@ -178,7 +182,7 @@ async function loadLiveMetrics(
     source: 'smartbi',
   }
 
-  const [subBi, salesBi, satBi, lostBi, creditBi, opsDw, subBreakdown] =
+  const [subBi, salesBi, satBi, lostBi, creditBi, smsChargeBi, opsDw, subBreakdown] =
     await Promise.all([
       // Insight: memberCount / MinFactureCount
       query<{
@@ -253,10 +257,18 @@ async function loadLiveMetrics(
            AND TRY_CAST(YearMonth AS int) BETWEEN @fromYm AND @toYm`,
         { sw, fromYm, toYm },
       ),
+      // Insight KPI: روز بدون شارژ پیامک از PowerBI (نه Fact_Branch.DW)
+      query<{ NegChargeDays: number | null }>(
+        `SELECT
+          SUM(ISNULL(CountDayWithoutCharge,0)) AS NegChargeDays
+         FROM SmartPowerBI.dbo.V_BI_BranchSmsCharge WITH (NOLOCK)
+         WHERE BranchID = @sw
+           AND TRY_CAST(YearMonth AS int) BETWEEN @fromYm AND @toYm`,
+        { sw, fromYm, toYm },
+      ).catch(() => [{ NegChargeDays: 0 }]),
       query<{
         Customers: number | null
         CustomersStart: number | null
-        NegChargeDays: number | null
         DisconnectDays: number | null
         DayCount: number | null
         NewCustomers: number | null
@@ -264,7 +276,6 @@ async function loadLiveMetrics(
         `SELECT
           MAX(TotalCustomerCount) AS Customers,
           MIN(TotalCustomerCount) AS CustomersStart,
-          SUM(CASE WHEN ISNULL(HowManydayschargeisNegetive,0) > 0 THEN 1 ELSE 0 END) AS NegChargeDays,
           SUM(CASE WHEN ISNULL(HowManydaysDisconnected,0) > 0 THEN 1 ELSE 0 END) AS DisconnectDays,
           COUNT(*) AS DayCount,
           SUM(NewCustomerCount) AS NewCustomers
@@ -313,9 +324,11 @@ async function loadLiveMetrics(
   const salesOrders = num(salesBi[0]?.TotalOrders)
   const priceSum = num(salesBi[0]?.Sales)
 
-  // سفارش برای درصد اشتراک = MinFactureCount (تعریف Insight)
-  let factureCount = minFacture > 0 ? minFacture : salesOrders
-  let subCount = memberCount
+  // Insight Main Performance «تعداد سفارش» = totalInvoices از Fact_SalesSummary
+  // درصد اشتراک همچنان روی MinFactureCount (Fact_Subscription) حساب می‌شود
+  const orderCount = salesOrders > 0 ? salesOrders : minFacture
+  const subBase = minFacture > 0 ? minFacture : salesOrders
+  const subCount = memberCount
 
   const reviews = num(satBi[0]?.TotalReviews)
   const satisfied = num(satBi[0]?.Satisfied)
@@ -335,7 +348,8 @@ async function loadLiveMetrics(
 
   return {
     ...empty,
-    FactureCount: factureCount,
+    FactureCount: orderCount,
+    MinFactureCount: subBase,
     SubCount: subCount,
     PriceSum: priceSum,
     SurveyCount: smsSurvey > 0 ? smsSurvey : reviews,
@@ -352,7 +366,7 @@ async function loadLiveMetrics(
     UsedAct: num(credit?.UsedAct),
     CreatedPrice: num(credit?.CreatedPrice),
     UsedPrice: num(credit?.UsedPrice),
-    NegChargeDays: num(ops?.NegChargeDays),
+    NegChargeDays: num(smsChargeBi[0]?.NegChargeDays),
     DisconnectDays: num(ops?.DisconnectDays),
     DayCount: num(ops?.DayCount),
     NewCustomers: newFromLost || num(ops?.NewCustomers),
@@ -416,7 +430,7 @@ function overall(f: FactAgg): ReportSection {
         label: 'تعداد سفارش',
         value: faInt(f.FactureCount),
         tone: f.FactureCount > 0 ? 'ok' : 'info',
-        note: 'SmartBi · Fact_Subscription/Sales',
+        note: 'Insight · Fact_SalesSummary.TotalOrders',
       },
       {
         label: 'میانگین سفارش',
@@ -439,8 +453,8 @@ function overall(f: FactAgg): ReportSection {
 }
 
 function subscription(f: FactAgg): ReportSection {
-  const pct =
-    f.FactureCount > 0 ? (f.SubCount / f.FactureCount) * 100 : 0
+  const base = f.MinFactureCount > 0 ? f.MinFactureCount : f.FactureCount
+  const pct = base > 0 ? (f.SubCount / base) * 100 : 0
   const tone = toneByHigherBetter(pct, getThresholds().subscription)
   const hints: ReportSection['hints'] = []
   if (tone === 'bad' || tone === 'warn') {
@@ -462,7 +476,7 @@ function subscription(f: FactAgg): ReportSection {
         label: 'درصد اشتراک‌گیری',
         value: faPercent(pct),
         tone: pct > 0 ? tone : 'nodata',
-        note: `آستانه خوب ≥ ${getThresholds().subscription.ok}٪ · SmartBi Fact_Subscription`,
+        note: `آستانه خوب ≥ ${getThresholds().subscription.ok}٪ · Insight Fact_Subscription.MinFactureCount`,
       },
       {
         label: 'سفارش با اشتراک',
@@ -470,9 +484,10 @@ function subscription(f: FactAgg): ReportSection {
         tone: 'info',
       },
       {
-        label: 'کل سفارش (مبنای Insight)',
-        value: faInt(f.FactureCount),
+        label: 'کل سفارش (مخرج اشتراک)',
+        value: faInt(base),
         tone: 'info',
+        note: 'MinFactureCount — جدا از «تعداد سفارش» کارت عملکرد',
       },
     ],
     rows: f.SubRows.length > 0 ? f.SubRows : undefined,
@@ -670,14 +685,16 @@ function panelCharge(f: FactAgg): ReportSection {
     title: TITLES.panelCharge,
     metrics: [
       {
-        label: 'روزهای شارژ منفی / کم',
+        label: 'روزهای بدون شارژ پیامک',
         value: `${faInt(f.NegChargeDays)} روز`,
         tone,
+        note: 'SmartPowerBI · V_BI_BranchSmsCharge',
       },
       {
-        label: 'از کل روزهای بازه',
+        label: 'از کل روزهای بازه (اتصال)',
         value: faInt(f.DayCount),
         tone: 'info',
+        note: 'Fact_Branch فقط برای شمارش روزهای تقویم اتصال',
       },
     ],
     hints:
@@ -697,25 +714,32 @@ function connection(f: FactAgg): ReportSection {
     f.DisconnectDays,
     getThresholds().disconnectDays,
   )
+  const hints: NonNullable<ReportSection['hints']> = []
+  if (f.DisconnectDays > 0) {
+    hints.push({
+      text: `در بازهٔ انتخاب‌شده ${faInt(f.DisconnectDays)} روز قطع ارتباط ثبت شده (تاریخی روی بازه؛ جدا از شارژ پنل)`,
+      tone: tone === 'ok' ? 'warn' : tone,
+    })
+  }
+  // شارژ پنل ستون جداست؛ اگر بدون شارژ بوده در نکات قابل‌بهبود هم بیاید
+  if (f.NegChargeDays > 0) {
+    hints.push({
+      text: `${faInt(f.NegChargeDays)} روز بدون شارژ پیامک — بخش «شارژ پنل» را برای بهبود ببینید`,
+      tone: 'warn',
+    })
+  }
   return {
     featureId: 'connection',
     title: TITLES.connection,
     metrics: [
       {
-        label: 'روزهای قطع ارتباط',
+        label: 'روزهای قطع ارتباط (بازه)',
         value: `${faInt(f.DisconnectDays)} روز`,
         tone,
+        note: 'SmartProjectDW · Fact_Branch · فقط HowManydaysDisconnected',
       },
     ],
-    hints:
-      f.DisconnectDays > 0
-        ? [
-            {
-              text: 'قطع ارتباط باعث ناقص شدن فاکتور و گزارش می‌شود',
-              tone: tone === 'ok' ? 'warn' : tone,
-            },
-          ]
-        : undefined,
+    hints: hints.length ? hints : undefined,
   }
 }
 

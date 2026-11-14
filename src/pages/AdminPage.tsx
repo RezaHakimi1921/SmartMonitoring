@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import {
+  Box,
+  Button,
+  Card,
+  Chip,
+  Snackbar,
+  Stack,
+  TabDesktop,
+  TextField,
+  Typography,
+} from '@smartx/design-system'
 import { MetricQualityPanel } from '../components/MetricQualityPanel'
 import { TemplateTagEditor } from '../components/TemplateTagEditor'
 import { FEATURES, SOURCE_LABEL } from '../data/catalog'
@@ -37,6 +48,13 @@ const MODES: { id: FeatureMode | 'off'; label: string; hint: string }[] = [
   },
 ]
 
+const TABS = [
+  { value: 'features', label: 'بخش‌های گزارش' },
+  { value: 'diag', label: 'نکات پیگیری' },
+  { value: 'metrics', label: 'کیفی شاخص‌ها' },
+  { value: 'templates', label: 'قالب پیام' },
+]
+
 export function AdminPage() {
   const { user, reloadConfig } = useAuth()
   const [config, setConfig] = useState<MonitoringConfig | null>(null)
@@ -46,8 +64,20 @@ export function AdminPage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
+  const initialTab = (() => {
+    const t = new URLSearchParams(window.location.search).get('tab')
+    if (
+      t === 'features' ||
+      t === 'diag' ||
+      t === 'metrics' ||
+      t === 'templates'
+    ) {
+      return t
+    }
+    return 'features'
+  })()
   const [tab, setTab] = useState<'features' | 'diag' | 'metrics' | 'templates'>(
-    'features',
+    initialTab,
   )
 
   useEffect(() => {
@@ -136,6 +166,20 @@ export function AdminPage() {
   }
 
   const canEditMetrics = user?.role === 'superadmin'
+  const canEditReviewTypes = user?.role === 'superadmin'
+
+  const updateReviewType = (
+    id: string,
+    patch: Partial<Pick<ReviewType, 'title' | 'description'>>,
+  ) => {
+    if (!config || !canEditReviewTypes) return
+    setConfig({
+      ...config,
+      reviewTypes: config.reviewTypes.map((t) =>
+        t.id === id ? { ...t, ...patch } : t,
+      ),
+    })
+  }
 
   const updateRule = (id: string, patch: Partial<MetricRule>) => {
     if (!config || !canEditMetrics) return
@@ -227,196 +271,364 @@ export function AdminPage() {
 
   if (!config) {
     return (
-      <div className="panel glass-card" aria-busy="true">
-        <p className="muted">در حال بارگذاری تنظیمات سرور…</p>
-        {error ? <p className="flow-reason">{error}</p> : null}
-      </div>
+      <Card elevation={1} sx={{ p: 2 }} aria-busy>
+        <Typography variant="bodyMedium" color="text.secondary">
+          در حال بارگذاری تنظیمات سرور…
+        </Typography>
+        {error ? (
+          <Typography variant="bodySmall" color="error" sx={{ mt: 1 }}>
+            {error}
+          </Typography>
+        ) : null}
+      </Card>
     )
   }
 
   return (
-    <>
-      <section className="page-intro">
-        <h2 style={{ margin: 0, fontSize: 22 }}>تنظیمات انواع بررسی</h2>
-        <p>
+    <Stack spacing={3} sx={{ pb: 10 }}>
+      <Box>
+        <Typography variant="headlineSmall" display="block">
+          تنظیمات انواع بررسی
+        </Typography>
+        <Typography
+          variant="bodyMedium"
+          color="text.secondary"
+          display="block"
+          sx={{ mt: 0.5 }}
+        >
           پیش‌فرض بخش‌ها، نکات پیگیری، آستانه‌ها و قالب پیام روی سرور ذخیره
           می‌شود و برای همه کاربران اعمال می‌گردد.
-        </p>
-      </section>
+        </Typography>
+      </Box>
 
-      {error ? <div className="report-notice">{error}</div> : null}
+      {error ? (
+        <Typography variant="bodyMedium" color="error">
+          {error}
+        </Typography>
+      ) : null}
 
-      <div className="tabs-row" role="tablist" aria-label="بخش تنظیمات">
-        {(
-          [
-            ['features', 'بخش‌های گزارش'],
-            ['diag', 'نکات پیگیری'],
-            ['metrics', 'کیفی شاخص‌ها'],
-            ['templates', 'قالب پیام'],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            className={`tab${tab === id ? ' active' : ''}`}
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <TabDesktop
+        items={TABS}
+        value={tab}
+        onChange={(v) => {
+          const next = v as 'features' | 'diag' | 'metrics' | 'templates'
+          setTab(next)
+          const url = new URL(window.location.href)
+          url.searchParams.set('tab', next)
+          window.history.replaceState(null, '', url.pathname + url.search)
+        }}
+      />
 
       {(tab === 'features' || tab === 'diag') && (
-        <div className="admin-grid" style={{ marginTop: 16 }}>
-          <div className="panel glass-card">
-            <h3 className="panel-title">انواع بررسی</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {types.map((t: ReviewType) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className="iso-card glass-card"
-                  style={{
-                    padding: 16,
-                    outline:
-                      t.id === activeTypeId
-                        ? '2px solid var(--primary)'
-                        : undefined,
-                  }}
-                  onClick={() => setActiveTypeId(t.id)}
-                >
-                  <strong>{t.title}</strong>
-                  <div className="muted">{t.description}</div>
-                </button>
-              ))}
-            </div>
-          </div>
+        <Box
+          sx={{
+            display: 'grid',
+            gap: 2,
+            gridTemplateColumns: { xs: '1fr', md: 'minmax(240px, 300px) 1fr' },
+            alignItems: 'start',
+          }}
+        >
+          <Card elevation={1} title="انواع بررسی" sx={{ p: 1 }}>
+            <Stack spacing={1}>
+              {types.map((t: ReviewType) => {
+                const selected = t.id === activeTypeId
+                return (
+                  <Box
+                    key={t.id}
+                    component="button"
+                    type="button"
+                    onClick={() => setActiveTypeId(t.id)}
+                    sx={{
+                      textAlign: 'right',
+                      cursor: 'pointer',
+                      p: 1.5,
+                      borderRadius: 2,
+                      border: '1px solid',
+                      borderColor: selected ? 'primary.main' : 'divider',
+                      bgcolor: selected
+                        ? 'primary.primaryContainer'
+                        : 'background.paper',
+                      font: 'inherit',
+                      color: 'inherit',
+                      display: 'block',
+                      width: '100%',
+                    }}
+                  >
+                    <Typography variant="titleSmall" display="block">
+                      {t.title || 'بدون عنوان'}
+                    </Typography>
+                    <Typography
+                      variant="bodySmall"
+                      color="text.secondary"
+                      display="block"
+                      sx={{ mt: 0.5 }}
+                    >
+                      {t.description || 'بدون توضیح'}
+                    </Typography>
+                  </Box>
+                )
+              })}
+            </Stack>
+            {!canEditReviewTypes ? (
+              <Typography
+                variant="bodySmall"
+                color="text.secondary"
+                display="block"
+                sx={{ mt: 1.5 }}
+              >
+                ویرایش نام و توضیح فقط برای سوپرادمین است.
+              </Typography>
+            ) : null}
+          </Card>
 
-          <div className="panel glass-card">
-            <h3 className="panel-title">
-              {tab === 'features' ? 'اتصال ویژگی‌ها' : 'پیش‌فرض نکات پیگیری'}
-              {active ? ` · ${active.title}` : ''}
-            </h3>
+          <Stack spacing={2}>
+            {active && canEditReviewTypes ? (
+              <Card elevation={1} title="نام و توضیح این نوع بررسی" sx={{ p: 1 }}>
+                <Stack spacing={2}>
+                  <TextField
+                    label="عنوان بررسی"
+                    value={active.title}
+                    onChange={(e) =>
+                      updateReviewType(active.id, { title: e.target.value })
+                    }
+                    fullWidth
+                    required
+                    helperText="در صفحهٔ اول و گزارش‌ها نمایش داده می‌شود"
+                  />
+                  <TextField
+                    label="توضیح / زیرعنوان"
+                    value={active.description}
+                    onChange={(e) =>
+                      updateReviewType(active.id, {
+                        description: e.target.value,
+                      })
+                    }
+                    fullWidth
+                    multiline
+                    minRows={2}
+                    helperText="متن کوتاه زیر عنوان در کارت نوع بررسی"
+                  />
+                </Stack>
+              </Card>
+            ) : null}
+
+          <Card
+            elevation={1}
+            title={
+              tab === 'features'
+                ? `اتصال ویژگی‌ها${active ? ` · ${active.title}` : ''}`
+                : `پیش‌فرض نکات پیگیری${active ? ` · ${active.title}` : ''}`
+            }
+            sx={{ p: 1 }}
+          >
             {!active ? (
-              <p className="muted">یک نوع را انتخاب کنید.</p>
+              <Typography variant="bodyMedium" color="text.secondary">
+                یک نوع را انتخاب کنید.
+              </Typography>
             ) : tab === 'features' ? (
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>ویژگی</th>
-                    <th>منبع</th>
-                    <th>حالت</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {FEATURES.map((f) => {
-                    const current = active.features[f.id] ?? ''
-                    return (
-                      <tr key={f.id}>
-                        <td>
-                          <strong>{f.title}</strong>
-                          <div className="muted">{f.description}</div>
-                        </td>
-                        <td>{SOURCE_LABEL[f.source]}</td>
-                        <td>
-                          <div
-                            className="segmented"
-                            role="radiogroup"
-                            aria-label={`حالت ${f.title}`}
-                          >
-                            {MODES.map((m) => {
-                              const on = (current || 'off') === m.id
-                              return (
-                                <button
-                                  key={m.id}
-                                  type="button"
-                                  role="radio"
-                                  aria-checked={on}
-                                  title={m.hint}
-                                  className={`seg seg-${m.id}${on ? ' on' : ''}`}
-                                  onClick={() => setMode(f.id, m.id)}
-                                >
-                                  {m.label}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+              <Box sx={{ overflowX: 'auto' }}>
+                <Box
+                  component="table"
+                  sx={{
+                    width: '100%',
+                    tableLayout: 'fixed',
+                    borderCollapse: 'collapse',
+                    '& th, & td': {
+                      textAlign: 'right',
+                      py: 1.5,
+                      px: 1.25,
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                      verticalAlign: 'top',
+                    },
+                    '& th': {
+                      typography: 'labelMedium',
+                      color: 'text.secondary',
+                      whiteSpace: 'nowrap',
+                    },
+                  }}
+                >
+                  <thead>
+                    <tr>
+                      <th style={{ width: '42%' }}>ویژگی</th>
+                      <th style={{ width: '18%' }}>منبع</th>
+                      <th style={{ width: '40%' }}>حالت</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {FEATURES.map((f) => {
+                      const current = active.features[f.id] ?? ''
+                      return (
+                        <tr key={f.id}>
+                          <td>
+                            <Typography variant="titleSmall" display="block">
+                              {f.title}
+                            </Typography>
+                            <Typography
+                              variant="bodySmall"
+                              color="text.secondary"
+                              display="block"
+                              sx={{ mt: 0.5 }}
+                            >
+                              {f.description}
+                            </Typography>
+                          </td>
+                          <td>
+                            <Typography variant="bodySmall" display="block">
+                              {SOURCE_LABEL[f.source]}
+                            </Typography>
+                          </td>
+                          <td>
+                            <Stack
+                              direction="row"
+                              flexWrap="wrap"
+                              useFlexGap
+                              gap={0.75}
+                              role="radiogroup"
+                              aria-label={`حالت ${f.title}`}
+                            >
+                              {MODES.map((m) => {
+                                const on = (current || 'off') === m.id
+                                return (
+                                  <Chip
+                                    key={m.id}
+                                    label={m.label}
+                                    size="small"
+                                    clickable
+                                    title={m.hint}
+                                    color={on ? 'primary' : 'default'}
+                                    variant={on ? 'filled' : 'outlined'}
+                                    onClick={() => setMode(f.id, m.id)}
+                                    aria-checked={on}
+                                    role="radio"
+                                  />
+                                )
+                              })}
+                            </Stack>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </Box>
+              </Box>
             ) : (
-              <div className="category-stack">
+              <Stack spacing={2.5}>
                 {DIAG_CATEGORIES.map((cat) => {
                   const items = DIAG_ITEMS.filter((d) => d.category === cat.id)
                   return (
-                    <section key={cat.id} className="category-block">
-                      <div className="category-head">
-                        <div>
-                          <h4>{cat.title}</h4>
-                          <p className="muted">{cat.description}</p>
-                        </div>
-                        <div className="actions">
-                          <button
-                            type="button"
-                            className="btn btn-ghost"
+                    <Box key={cat.id}>
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        alignItems="flex-start"
+                        flexWrap="wrap"
+                        gap={1}
+                        sx={{ mb: 1 }}
+                      >
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Typography
+                            variant="titleMedium"
+                            component="div"
+                            sx={{ display: 'block' }}
+                          >
+                            {cat.title}
+                          </Typography>
+                          <Typography
+                            variant="bodySmall"
+                            color="text.secondary"
+                            component="div"
+                            sx={{ display: 'block', mt: 0.5 }}
+                          >
+                            {cat.description}
+                          </Typography>
+                        </Box>
+                        <Stack direction="row" spacing={0.5}>
+                          <Button
+                            buttonVariant="text"
+                            buttonSize="small"
                             onClick={() => setDiagCategory(cat.id, true)}
                           >
                             انتخاب همه
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-ghost"
+                          </Button>
+                          <Button
+                            buttonVariant="text"
+                            buttonSize="small"
                             onClick={() => setDiagCategory(cat.id, false)}
                           >
                             لغو
-                          </button>
-                        </div>
-                      </div>
-                      <div className="feature-list">
-                        {items.map((d) => (
-                          <label
-                            key={d.id}
-                            className={`feature-item${diagSelected.has(d.id) ? ' is-on' : ''}`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={diagSelected.has(d.id)}
-                              onChange={() => toggleDiagDefault(d.id)}
-                            />
-                            <span>
-                              <strong>{d.title}</strong>
-                              <span className="muted">{d.hint}</span>
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    </section>
+                          </Button>
+                        </Stack>
+                      </Stack>
+                      <Stack spacing={1}>
+                        {items.map((d) => {
+                          const on = diagSelected.has(d.id)
+                          return (
+                            <Box
+                              key={d.id}
+                              component="label"
+                              sx={{
+                                display: 'flex',
+                                gap: 1.25,
+                                alignItems: 'flex-start',
+                                p: 1.25,
+                                borderRadius: 2,
+                                border: '1px solid',
+                                borderColor: on ? 'primary.main' : 'divider',
+                                bgcolor: on
+                                  ? 'primary.primaryContainer'
+                                  : 'transparent',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={on}
+                                onChange={() => toggleDiagDefault(d.id)}
+                                style={{ marginTop: 4, flexShrink: 0 }}
+                              />
+                              <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
+                                <Typography
+                                  variant="titleSmall"
+                                  component="div"
+                                  sx={{ display: 'block' }}
+                                >
+                                  {d.title}
+                                </Typography>
+                                <Typography
+                                  variant="bodySmall"
+                                  color="text.secondary"
+                                  component="div"
+                                  sx={{ display: 'block' }}
+                                >
+                                  {d.hint}
+                                </Typography>
+                              </Stack>
+                            </Box>
+                          )
+                        })}
+                      </Stack>
+                    </Box>
                   )
                 })}
-              </div>
+              </Stack>
             )}
-          </div>
-        </div>
+          </Card>
+          </Stack>
+        </Box>
       )}
 
       {tab === 'metrics' ? (
-        <div style={{ marginTop: 16 }}>
-          <MetricQualityPanel
-            rules={config.metricRules}
-            canEdit={canEditMetrics}
-            onUpdate={updateRule}
-            onSetKind={setRuleKind}
-          />
-        </div>
+        <MetricQualityPanel
+          rules={config.metricRules}
+          canEdit={canEditMetrics}
+          onUpdate={updateRule}
+          onSetKind={setRuleKind}
+        />
       ) : null}
 
       {tab === 'templates' ? (
-        <div className="template-stack" style={{ marginTop: 16 }}>
+        <Stack spacing={2}>
           <TemplateTagEditor
             title="قالب ارسال پیام به مشتری"
             value={config.customerMessageTemplate}
@@ -431,56 +643,92 @@ export function AdminPage() {
               setConfig({ ...config, assistantFormTemplate })
             }
           />
-        </div>
+        </Stack>
       ) : null}
 
-      <div className="save-bar">
-        <span className={dirty ? 'save-state dirty' : 'save-state muted'}>
+      <Box
+        sx={{
+          position: 'sticky',
+          bottom: 0,
+          zIndex: 10,
+          mt: 2,
+          mx: -1,
+          px: 2,
+          py: 1.5,
+          bgcolor: 'background.paper',
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 2,
+          flexWrap: 'wrap',
+        }}
+      >
+        <Typography
+          variant="bodySmall"
+          color={dirty ? 'warning.main' : 'text.secondary'}
+        >
           {dirty ? 'تغییرات ذخیره نشده است' : 'همه تغییرات ذخیره شده است'}
-        </span>
-        <div className="actions">
+        </Typography>
+        <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
           {confirmReset ? (
             <>
-              <span>همه تنظیمات سرور به حالت اولیه برگردد؟</span>
-              <button
-                type="button"
-                className="btn btn-primary"
+              <Typography variant="bodySmall">
+                همه تنظیمات سرور به حالت اولیه برگردد؟
+              </Typography>
+              <Button
+                buttonVariant="filled"
                 disabled={busy}
+                loading={busy}
                 onClick={() => void reset()}
               >
                 بله، بازنشانی
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost"
+              </Button>
+              <Button
+                buttonVariant="text"
                 onClick={() => setConfirmReset(false)}
               >
                 انصراف
-              </button>
+              </Button>
             </>
           ) : (
             <>
-              <button
-                type="button"
-                className="btn btn-ghost"
+              <Button
+                buttonVariant="text"
                 onClick={() => setConfirmReset(true)}
               >
                 بازنشانی به پیش‌فرض
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
+              </Button>
+              <Button
+                buttonVariant="filled"
                 disabled={!dirty || busy}
+                loading={busy}
                 onClick={() => void persist()}
               >
-                {busy ? 'در حال ذخیره…' : 'ذخیره روی سرور'}
-              </button>
+                ذخیره روی سرور
+              </Button>
             </>
           )}
-        </div>
-      </div>
+        </Stack>
+      </Box>
 
-      {toast ? <div className="toast">{toast}</div> : null}
-    </>
+      <Box
+        sx={{
+          position: 'fixed',
+          bottom: 24,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1400,
+        }}
+      >
+        <Snackbar
+          open={!!toast}
+          message={toast}
+          severity="success"
+          onClose={() => setToast('')}
+        />
+      </Box>
+    </Stack>
   )
 }

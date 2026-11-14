@@ -22,10 +22,10 @@ sleep 2
 curl -sS http://127.0.0.1:5188/monitoring/api/health
 echo
 if grep -R -F -q 'BrandName@' dist/assets/*.js 2>/dev/null \
-  && grep -R -F -q 'metric-card' dist/assets/*.css 2>/dev/null; then
-  echo HAS_NEW_UI
+  && grep -R -F -q 'IRANYekanXFaNum' dist/assets/*.css 2>/dev/null; then
+  echo HAS_DS_UI
 else
-  echo MISSING_NEW_UI
+  echo MISSING_DS_UI
 fi
 echo PID="$(cat logs/monitoring.pid)"
 ps -p "$(cat logs/monitoring.pid)" -o pid,cmd || true

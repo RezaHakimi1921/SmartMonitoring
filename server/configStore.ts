@@ -285,8 +285,8 @@ export function defaultConfig(): MonitoringConfig {
       },
       {
         id: 'first',
-        title: 'بررسی اول',
-        description: 'راه‌اندازی و صحت تنظیمات اولیه',
+        title: 'بررسی پس از تحویل',
+        description: 'راه‌اندازی و صحت تنظیمات پس از تحویل به مشتری',
         features: {
           overall: 'defaultOn',
           subscription: 'defaultOn',

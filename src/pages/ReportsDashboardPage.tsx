@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link as RouterLink } from 'react-router-dom'
+import {
+  Box,
+  Button,
+  Card,
+  Chip,
+  Select,
+  Stack,
+  Switch,
+  Typography,
+} from '@smartx/design-system'
 import {
   fetchReports,
   type ReportAuthor,
@@ -19,8 +29,8 @@ function faWhen(iso: string) {
   return `${formatJalaliLong(gregorianToJalali(d))} · ${time}`
 }
 
-const STAGE_FILTERS: { id: '' | ReportStageKey; label: string }[] = [
-  { id: '', label: 'همه مراحل' },
+const STAGE_FILTERS: { id: string; label: string }[] = [
+  { id: 'all', label: 'همه مراحل' },
   { id: 'summary', label: 'خلاصه' },
   { id: 'section', label: 'بررسی بخش‌ها' },
   { id: 'diag', label: 'نکات پیگیری' },
@@ -28,12 +38,14 @@ const STAGE_FILTERS: { id: '' | ReportStageKey; label: string }[] = [
   { id: 'sent', label: 'ارسال‌شده' },
 ]
 
-function stageBadgeClass(r: ServerReport) {
-  if (r.status === 'sent' || r.stageKey === 'sent') return 'stage-badge sent'
-  if (r.stageKey === 'send') return 'stage-badge send'
-  if (r.stageKey === 'diag') return 'stage-badge diag'
-  if (r.stageKey === 'section') return 'stage-badge section'
-  return 'stage-badge summary'
+function stageChipColor(
+  r: ServerReport,
+): 'default' | 'primary' | 'success' | 'warning' | 'info' {
+  if (r.status === 'sent' || r.stageKey === 'sent') return 'success'
+  if (r.stageKey === 'send') return 'primary'
+  if (r.stageKey === 'diag') return 'warning'
+  if (r.stageKey === 'section') return 'info'
+  return 'default'
 }
 
 function stageText(r: ServerReport) {
@@ -52,19 +64,44 @@ function openHref(r: ServerReport) {
   return r.query ? `${base}?${r.query}` : base
 }
 
+function FilterField({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <Box sx={{ minWidth: 160, flex: '1 1 160px' }}>
+      <Typography
+        variant="labelMedium"
+        color="text.secondary"
+        sx={{ mb: 0.75, display: 'block' }}
+      >
+        {label}
+      </Typography>
+      {children}
+    </Box>
+  )
+}
+
 export function ReportsDashboardPage() {
   const { user } = useAuth()
   const [reports, setReports] = useState<ServerReport[]>([])
   const [authors, setAuthors] = useState<ReportAuthor[]>([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
-  const [userId, setUserId] = useState('')
-  const [typeId, setTypeId] = useState('')
-  const [stageKey, setStageKey] = useState<'' | ReportStageKey>('')
+  const [userId, setUserId] = useState('all')
+  const [typeId, setTypeId] = useState('all')
+  const [stageKey, setStageKey] = useState('all')
   const [mineOnly, setMineOnly] = useState(false)
+  const [userOpen, setUserOpen] = useState(false)
+  const [stageOpen, setStageOpen] = useState(false)
+  const [typeOpen, setTypeOpen] = useState(false)
   const types = useMemo(() => loadReviewTypes(), [])
 
-  const effectiveUserId = mineOnly && user ? user.id : userId
+  const effectiveUserId =
+    mineOnly && user ? user.id : userId === 'all' ? '' : userId
 
   const reload = async () => {
     setLoading(true)
@@ -72,8 +109,9 @@ export function ReportsDashboardPage() {
     try {
       const data = await fetchReports({
         userId: effectiveUserId || undefined,
-        typeId: typeId || undefined,
-        stageKey: stageKey || undefined,
+        typeId: typeId === 'all' ? undefined : typeId,
+        stageKey:
+          stageKey === 'all' ? undefined : (stageKey as ReportStageKey),
       })
       setReports(data.reports)
       setAuthors(data.authors)
@@ -101,162 +139,280 @@ export function ReportsDashboardPage() {
     }
   }, [reports])
 
+  const authorOptions = useMemo(
+    () => [
+      { id: 'all', label: 'همه کاربران' },
+      ...authors.map((u) => ({
+        id: u.userId,
+        label: u.username
+          ? `${u.displayName} (${u.username})`
+          : u.displayName,
+      })),
+    ],
+    [authors],
+  )
+
+  const typeOptions = useMemo(
+    () => [
+      { id: 'all', label: 'همه' },
+      ...types.map((t) => ({ id: t.id, label: t.title })),
+    ],
+    [types],
+  )
+
   return (
-    <>
-      <section className="page-intro">
-        <h2 style={{ margin: 0, fontSize: 22 }}>صندوق گزارش‌ها</h2>
-        <p>
+    <Stack spacing={3}>
+      <Box>
+        <Typography variant="headlineSmall">صندوق گزارش‌ها</Typography>
+        <Typography variant="bodyMedium" color="text.secondary">
           همه گزارش‌های ثبت‌شده تیم را ببینید، بر اساس کاربر و مرحله فیلتر کنید و
           وضعیت هر کدام را پیگیری کنید.
-        </p>
-      </section>
+        </Typography>
+      </Box>
 
-      <div className="inbox-stats">
-        <div className="inbox-stat glass-card">
-          <span className="muted">کل در فیلتر</span>
-          <strong>{toFaDigits(counts.total)}</strong>
-        </div>
-        <div className="inbox-stat glass-card">
-          <span className="muted">در حال انجام</span>
-          <strong>{toFaDigits(counts.inProgress)}</strong>
-        </div>
-        <div className="inbox-stat glass-card">
-          <span className="muted">ارسال‌شده</span>
-          <strong>{toFaDigits(counts.sent)}</strong>
-        </div>
-      </div>
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 1.5,
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+        }}
+      >
+        {(
+          [
+            ['کل در فیلتر', counts.total],
+            ['در حال انجام', counts.inProgress],
+            ['ارسال‌شده', counts.sent],
+          ] as const
+        ).map(([label, value]) => (
+          <Card key={label} elevation={1} sx={{ p: 2 }}>
+            <Typography variant="labelMedium" color="text.secondary">
+              {label}
+            </Typography>
+            <Typography variant="headlineSmall">
+              {toFaDigits(value)}
+            </Typography>
+          </Card>
+        ))}
+      </Box>
 
-      <div className="panel glass-card history-filters inbox-filters">
-        <div className="field-row">
-          <label htmlFor="flt-user">کاربر</label>
-          <select
-            id="flt-user"
-            className="select"
-            value={mineOnly ? '' : userId}
-            disabled={mineOnly}
-            onChange={(e) => setUserId(e.target.value)}
+      <Card elevation={1} sx={{ p: 2 }}>
+        <Stack
+          direction="row"
+          flexWrap="wrap"
+          gap={2}
+          alignItems="flex-end"
+        >
+          <FilterField label="کاربر">
+            <Select
+              value={mineOnly ? 'all' : userId}
+              options={authorOptions}
+              open={userOpen}
+              onOpenChange={setUserOpen}
+              disabled={mineOnly}
+              onChange={setUserId}
+              placeholder="همه کاربران"
+            />
+          </FilterField>
+          <FilterField label="مرحله">
+            <Select
+              value={stageKey}
+              options={STAGE_FILTERS}
+              open={stageOpen}
+              onOpenChange={setStageOpen}
+              onChange={setStageKey}
+              placeholder="همه مراحل"
+            />
+          </FilterField>
+          <FilterField label="نوع بررسی">
+            <Select
+              value={typeId}
+              options={typeOptions}
+              open={typeOpen}
+              onOpenChange={setTypeOpen}
+              onChange={setTypeId}
+              placeholder="همه"
+            />
+          </FilterField>
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1}
+            sx={{ pb: 0.5 }}
           >
-            <option value="">همه کاربران</option>
-            {authors.map((u) => (
-              <option key={u.userId} value={u.userId}>
-                {u.displayName}
-                {u.username ? ` (${u.username})` : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field-row">
-          <label htmlFor="flt-stage">مرحله</label>
-          <select
-            id="flt-stage"
-            className="select"
-            value={stageKey}
-            onChange={(e) =>
-              setStageKey(e.target.value as '' | ReportStageKey)
-            }
-          >
-            {STAGE_FILTERS.map((s) => (
-              <option key={s.id || 'all'} value={s.id}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field-row">
-          <label htmlFor="flt-type">نوع بررسی</label>
-          <select
-            id="flt-type"
-            className="select"
-            value={typeId}
-            onChange={(e) => setTypeId(e.target.value)}
-          >
-            <option value="">همه</option>
-            {types.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.title}
-              </option>
-            ))}
-          </select>
-        </div>
-        <label className="toggle-field inbox-mine">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={mineOnly}
-            className={`toggle${mineOnly ? ' on' : ''}`}
-            onClick={() => {
-              setMineOnly((v) => !v)
-              if (!mineOnly) setUserId('')
-            }}
-          >
-            <span className="toggle-knob" />
-          </button>
-          <span>فقط گزارش‌های من</span>
-        </label>
-      </div>
+            <Switch
+              checked={mineOnly}
+              onChange={(_, checked) => {
+                setMineOnly(checked)
+                if (checked) setUserId('all')
+              }}
+              inputProps={{ 'aria-label': 'فقط گزارش‌های من' }}
+            />
+            <Typography variant="bodyMedium">فقط گزارش‌های من</Typography>
+          </Stack>
+        </Stack>
+      </Card>
 
-      {error ? <div className="report-notice">{error}</div> : null}
+      {error ? (
+        <Typography variant="bodyMedium" color="error">
+          {error}
+        </Typography>
+      ) : null}
 
-      <div className="panel glass-card inbox-panel">
+      <Card elevation={1} sx={{ p: 1 }}>
         {loading ? (
-          <p className="muted" aria-busy="true">
+          <Typography
+            variant="bodyMedium"
+            color="text.secondary"
+            aria-busy
+            sx={{ p: 2 }}
+          >
             در حال بارگذاری صندوق…
-          </p>
+          </Typography>
         ) : reports.length === 0 ? (
-          <p className="muted">گزارشی با این فیلتر پیدا نشد.</p>
+          <Typography
+            variant="bodyMedium"
+            color="text.secondary"
+            sx={{ p: 2 }}
+          >
+            گزارشی با این فیلتر پیدا نشد.
+          </Typography>
         ) : (
-          <div className="table-wrap">
-            <table className="table inbox-table">
+          <Box sx={{ overflowX: 'auto' }}>
+            <Box
+              component="table"
+              sx={{
+                width: '100%',
+                tableLayout: 'fixed',
+                borderCollapse: 'collapse',
+                '& th, & td': {
+                  textAlign: 'right',
+                  py: 1.5,
+                  px: 1.25,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  verticalAlign: 'top',
+                  overflow: 'hidden',
+                },
+                '& th': {
+                  typography: 'labelMedium',
+                  color: 'text.secondary',
+                  whiteSpace: 'nowrap',
+                },
+              }}
+            >
               <thead>
                 <tr>
-                  <th>کاربر</th>
-                  <th>نوع / مجموعه</th>
-                  <th>مرحله</th>
-                  <th>پیشرفت</th>
-                  <th>آخرین فعالیت</th>
-                  <th></th>
+                  <th style={{ width: '16%' }}>کاربر</th>
+                  <th style={{ width: '28%' }}>نوع / مجموعه</th>
+                  <th style={{ width: '16%' }}>مرحله</th>
+                  <th style={{ width: '10%' }}>پیشرفت</th>
+                  <th style={{ width: '18%' }}>آخرین فعالیت</th>
+                  <th style={{ width: '12%' }}></th>
                 </tr>
               </thead>
               <tbody>
-                {reports.map((r) => (
+                {reports.map((r) => {
+                  const editedByOther =
+                    !!r.lastActorUserId &&
+                    r.lastActorUserId !== r.userId &&
+                    !!r.lastActorDisplayName
+                  return (
                   <tr key={r.id}>
                     <td>
-                      <strong>{r.displayName}</strong>
-                      <div className="muted">{r.username}</div>
+                      <Stack spacing={0.5}>
+                        <Typography
+                          variant="titleSmall"
+                          component="div"
+                          sx={{ display: 'block' }}
+                        >
+                          {r.displayName}
+                        </Typography>
+                        <Typography
+                          variant="bodySmall"
+                          color="text.secondary"
+                          component="div"
+                          dir="ltr"
+                          sx={{ display: 'block', textAlign: 'right' }}
+                        >
+                          {r.username}
+                        </Typography>
+                        {editedByOther ? (
+                          <Typography
+                            variant="bodySmall"
+                            color="text.secondary"
+                            component="div"
+                            sx={{ display: 'block' }}
+                          >
+                            آخرین ویرایش: {r.lastActorDisplayName}
+                          </Typography>
+                        ) : null}
+                      </Stack>
                     </td>
                     <td>
-                      <strong>{r.typeTitle}</strong>
-                      <div className="muted">
-                        {r.brandName}
-                        {r.branchName && r.branchName !== r.brandName
-                          ? ` — ${r.branchName}`
-                          : ''}
-                      </div>
+                      <Stack spacing={0.5}>
+                        <Typography
+                          variant="titleSmall"
+                          component="div"
+                          sx={{ display: 'block', wordBreak: 'break-word' }}
+                        >
+                          {r.typeTitle}
+                        </Typography>
+                        <Typography
+                          variant="bodySmall"
+                          color="text.secondary"
+                          component="div"
+                          sx={{ display: 'block', wordBreak: 'break-word' }}
+                        >
+                          {r.brandName}
+                          {r.branchName && r.branchName !== r.brandName
+                            ? ` — ${r.branchName}`
+                            : ''}
+                        </Typography>
+                      </Stack>
                     </td>
                     <td>
-                      <span className={stageBadgeClass(r)}>
-                        {stageText(r)}
-                      </span>
+                      <Chip
+                        label={stageText(r)}
+                        size="small"
+                        color={stageChipColor(r)}
+                      />
                     </td>
                     <td>
-                      <span className="inbox-progress">{progressText(r)}</span>
+                      <Typography
+                        variant="bodySmall"
+                        component="div"
+                        sx={{ display: 'block' }}
+                      >
+                        {progressText(r)}
+                      </Typography>
                     </td>
-                    <td>{faWhen(r.updatedAt)}</td>
                     <td>
-                      <Link
-                        className="btn btn-ghost btn-sm"
+                      <Typography
+                        variant="bodySmall"
+                        component="div"
+                        sx={{ display: 'block' }}
+                      >
+                        {faWhen(r.updatedAt)}
+                      </Typography>
+                    </td>
+                    <td>
+                      <Button
+                        component={RouterLink}
                         to={openHref(r)}
+                        buttonVariant="text"
+                        buttonSize="small"
                       >
                         باز کردن
-                      </Link>
+                      </Button>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
-            </table>
-          </div>
+            </Box>
+          </Box>
         )}
-      </div>
-    </>
+      </Card>
+    </Stack>
   )
 }

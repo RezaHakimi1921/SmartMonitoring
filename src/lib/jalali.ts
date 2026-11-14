@@ -141,6 +141,38 @@ export function toFaDigits(value: string | number) {
   return String(value).replace(/\d/g, (d) => FA_DIGITS[Number(d)])
 }
 
+/** ارقام فارسی/عربی → لاتین؛ برای پارس عدد از رشته‌های UI */
+export function fromFaDigits(value: string) {
+  return String(value)
+    .replace(/[۰-۹]/g, (d) => String(FA_DIGITS.indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+}
+
+/**
+ * عدد را از مقدار نمایشی فارسی استخراج می‌کند (مثلاً «۷۴.۰٪» → 74).
+ * جداکنندهٔ هزار و اعشار فارسی/لاتین را هم پوشش می‌دهد.
+ */
+export function parseFaNumber(raw: string | number | null | undefined): number {
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : NaN
+  if (raw == null) return NaN
+  let s = fromFaDigits(String(raw)).trim()
+  s = s.replace(/[٪%]/g, '')
+  s = s.replace(/[^\d.,٫٬-]/g, '')
+  // هزارگان فارسی/عربی را حذف کن؛ اعشار را نقطه کن
+  if (s.includes('٫')) {
+    s = s.replace(/٬/g, '').replace('٫', '.')
+  } else if (s.includes(',') && s.includes('.')) {
+    s = s.replace(/,/g, '')
+  } else if (s.includes(',')) {
+    // اگر بعد از ویرگول ۱–۲ رقم باشد احتمالاً اعشار است
+    s = /,\d{1,2}$/.test(s) ? s.replace(',', '.') : s.replace(/,/g, '')
+  } else {
+    s = s.replace(/٬/g, '')
+  }
+  const n = Number(s)
+  return Number.isFinite(n) ? n : NaN
+}
+
 const pad = (n: number) => String(n).padStart(2, '0')
 
 /** نمایش فارسی: ۱۴۰۵/۰۸/۱۲ */

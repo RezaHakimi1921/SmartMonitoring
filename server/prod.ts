@@ -34,9 +34,17 @@ function stripBase(pathname: string) {
 }
 
 function safeJoin(root: string, rel: string) {
-  const cleaned = path.normalize(rel).replace(/^(\.\.[/\\])+/, '')
+  // Strip leading slashes so path.join does not treat rel as absolute
+  // (POSIX: join('/dist', '/fonts/x') → '/fonts/x' and fonts 404 → SPA HTML).
+  const cleaned = path
+    .normalize(rel)
+    .replace(/^([/\\])+/, '')
+    .replace(/^(\.\.[/\\])+/, '')
   const full = path.join(root, cleaned)
-  if (!full.startsWith(root)) return null
+  const rootResolved = path.resolve(root)
+  if (!full.startsWith(rootResolved + path.sep) && full !== rootResolved) {
+    return null
+  }
   return full
 }
 
@@ -94,6 +102,40 @@ const server = http.createServer(async (req, res) => {
       ;(req as http.IncomingMessage & { url?: string }).url = apiPath + q
       const handled = await handleApi(req, res)
       if (handled) return
+    }
+
+    // Fonts: Vite base rewrites /fonts → /monitoring/fonts; also accept bare /fonts
+    const fontPath =
+      url.pathname.startsWith('/fonts/')
+        ? url.pathname.slice('/fonts/'.length)
+        : stripped && stripped.startsWith('/fonts/')
+          ? stripped.slice('/fonts/'.length)
+          : null
+    if (fontPath !== null) {
+      const rel = decodeURIComponent(fontPath)
+      const fromDist = safeJoin(path.join(DIST, 'fonts'), rel)
+      const fromPublic = safeJoin(path.join(ROOT, 'public', 'fonts'), rel)
+      const file =
+        fromDist && fs.existsSync(fromDist)
+          ? fromDist
+          : fromPublic && fs.existsSync(fromPublic)
+            ? fromPublic
+            : null
+      if (file) {
+        const ext = path.extname(file).toLowerCase()
+        res.statusCode = 200
+        res.setHeader(
+          'Content-Type',
+          ext === '.woff2'
+            ? 'font/woff2'
+            : ext === '.woff'
+              ? 'font/woff'
+              : MIME[ext] || 'application/octet-stream',
+        )
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+        fs.createReadStream(file).pipe(res)
+        return
+      }
     }
 
     if (stripped === null) {

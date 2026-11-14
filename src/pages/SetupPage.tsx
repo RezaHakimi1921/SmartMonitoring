@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom'
+import {
+  Box,
+  Button,
+  Card,
+  Chip,
+  Stack,
+  Typography,
+} from '@smartx/design-system'
 import { BrandSearch } from '../components/BrandSearch'
 import { JalaliRangePicker } from '../components/JalaliRangePicker'
 import { ReportOptions } from '../components/ReportOptions'
@@ -18,6 +26,28 @@ import {
   loadReviewTypes,
   selectionForType,
 } from '../lib/storage'
+
+function StepHeader({
+  n,
+  title,
+  description,
+}: {
+  n: string
+  title: string
+  description: string
+}) {
+  return (
+    <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ mb: 2 }}>
+      <Chip label={n} size="small" color="primary" />
+      <Box>
+        <Typography variant="titleMedium">{title}</Typography>
+        <Typography variant="bodySmall" color="text.secondary">
+          {description}
+        </Typography>
+      </Box>
+    </Stack>
+  )
+}
 
 export function SetupPage() {
   const { typeId = '' } = useParams()
@@ -50,12 +80,11 @@ export function SetupPage() {
 
   if (!type) {
     return (
-      <div className="panel">
-        <p>این نوع بررسی پیدا نشد.</p>
-        <Link className="btn btn-secondary" to="/">
+      <Card elevation={1} title="این نوع بررسی پیدا نشد.">
+        <Button component={RouterLink} to="/" buttonVariant="outlined">
           بازگشت به صفحه اول
-        </Link>
-      </div>
+        </Button>
+      </Card>
     )
   }
 
@@ -88,7 +117,6 @@ export function SetupPage() {
   const hasBrand = !!brand
   const canStart = hasBrand && enabledCount > 0 && rangeOk
 
-  // دلیل غیرفعال بودن دکمه، به زبان ساده
   let blockReason = ''
   if (!hasBrand) blockReason = 'برای ادامه، اول مجموعه را انتخاب کنید.'
   else if (period === 'custom' && !rangeOk)
@@ -117,55 +145,55 @@ export function SetupPage() {
   }
 
   return (
-    <div className="flow">
-      <div className="flow-back">
-        <Link to="/" className="btn btn-ghost">
-          → بازگشت
-        </Link>
-      </div>
+    <Stack spacing={2.5}>
+      <Button
+        component={RouterLink}
+        to="/"
+        buttonVariant="text"
+        buttonSize="small"
+        sx={{ alignSelf: 'flex-start' }}
+      >
+        → بازگشت
+      </Button>
 
-      <header className="flow-head">
-        <div className="card-kicker">نوع بررسی</div>
-        <h2>{type.title}</h2>
-        <p className="muted">{type.description}</p>
-      </header>
+      <Box>
+        <Typography variant="labelMedium" color="primary">
+          نوع بررسی
+        </Typography>
+        <Typography variant="headlineSmall">{type.title}</Typography>
+        <Typography variant="bodyMedium" color="text.secondary">
+          {type.description}
+        </Typography>
+      </Box>
 
-      <section className="step-card">
-        <div className="step-title">
-          <span className="step-num">۱</span>
-          <div>
-            <h3>مجموعه را پیدا کنید</h3>
-            <p className="muted">
-              نام مجموعه یا شماره قفل را بنویسید و از لیست انتخاب کنید.
-            </p>
-          </div>
-        </div>
+      <Card elevation={1} sx={{ p: 1, overflow: 'visible' }}>
+        <StepHeader
+          n="۱"
+          title="مجموعه را پیدا کنید"
+          description="نام مجموعه یا شماره قفل را بنویسید و از لیست انتخاب کنید."
+        />
         <BrandSearch value={brand} onChange={setBrand} />
-      </section>
+      </Card>
 
-      <section className="step-card">
-        <div className="step-title">
-          <span className="step-num">۲</span>
-          <div>
-            <h3>بازه زمانی گزارش</h3>
-            <p className="muted">
-              گزارش از چه تاریخی تا امروز بررسی شود؟ (تاریخ‌ها شمسی هستند)
-            </p>
-          </div>
-        </div>
-        <div className="period-row">
+      <Card elevation={1} sx={{ p: 1, overflow: 'visible' }}>
+        <StepHeader
+          n="۲"
+          title="بازه زمانی گزارش"
+          description="گزارش از چه تاریخی تا امروز بررسی شود؟ (تاریخ‌ها شمسی هستند)"
+        />
+        <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
           {PERIOD_OPTIONS.map((p) => (
-            <button
+            <Chip
               key={p.id}
-              type="button"
-              className={`period-chip${period === p.id ? ' active' : ''}`}
-              aria-pressed={period === p.id}
+              label={p.label}
+              clickable
+              color={period === p.id ? 'primary' : 'default'}
+              variant={period === p.id ? 'filled' : 'outlined'}
               onClick={() => setPeriod(p.id)}
-            >
-              {p.label}
-            </button>
+              aria-pressed={period === p.id}
+            />
           ))}
-        </div>
+        </Stack>
         {period === 'custom' ? (
           <JalaliRangePicker
             from={fromDate}
@@ -176,36 +204,42 @@ export function SetupPage() {
             }}
           />
         ) : null}
-        <p className="period-summary">
-          بازه انتخاب‌شده: <bdi>{periodLabel(period, fromDate, toDate)}</bdi>
-        </p>
-      </section>
+        <Typography variant="bodySmall" color="text.secondary" sx={{ mt: 1.5 }}>
+          بازه انتخاب‌شده:{' '}
+          <Box component="bdi" sx={{ fontWeight: 600, color: 'text.primary' }}>
+            {periodLabel(period, fromDate, toDate)}
+          </Box>
+        </Typography>
+      </Card>
 
-      <section className="step-card">
-        <div className="step-title">
-          <span className="step-num">۳</span>
-          <div>
-            <h3>محتوای گزارش</h3>
-            <p className="muted">
-              برای این نوع بررسی، بخش‌های لازم از قبل انتخاب شده‌اند؛ معمولاً
-              نیازی به تغییر نیست.
-            </p>
-          </div>
-        </div>
-        <div className="summary-row">
-          <span>
-            گزارش شامل <strong>{toFaDigits(enabledCount)} بخش</strong> و{' '}
+      <Card elevation={1} sx={{ p: 1 }}>
+        <StepHeader
+          n="۳"
+          title="محتوای گزارش"
+          description="برای این نوع بررسی، بخش‌های لازم از قبل انتخاب شده‌اند؛ معمولاً نیازی به تغییر نیست."
+        />
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          flexWrap="wrap"
+          gap={1.5}
+          sx={{ mb: showCustomize ? 2 : 0 }}
+        >
+          <Typography variant="bodyMedium">
+            گزارش شامل{' '}
+            <strong>{toFaDigits(enabledCount)} بخش</strong> و{' '}
             <strong>{toFaDigits(diagSelected.length)} نکته پیگیری</strong> است.
-          </span>
-          <button
-            type="button"
-            className="btn btn-secondary"
+          </Typography>
+          <Button
+            buttonVariant="outlined"
+            buttonSize="small"
             aria-expanded={showCustomize}
             onClick={() => setShowCustomize((v) => !v)}
           >
             {showCustomize ? 'بستن' : 'تغییر بخش‌ها (اختیاری)'}
-          </button>
-        </div>
+          </Button>
+        </Stack>
 
         {showCustomize ? (
           <ReportOptions
@@ -229,19 +263,23 @@ export function SetupPage() {
             }}
           />
         ) : null}
-      </section>
+      </Card>
 
-      <div className="flow-submit">
-        <button
-          type="button"
-          className="btn btn-primary btn-large"
+      <Stack spacing={1} alignItems="flex-start">
+        <Button
+          buttonVariant="filled"
+          buttonSize="standard"
           disabled={!canStart}
           onClick={start}
         >
           ساخت گزارش
-        </button>
-        {blockReason ? <p className="flow-reason">{blockReason}</p> : null}
-      </div>
-    </div>
+        </Button>
+        {blockReason ? (
+          <Typography variant="bodySmall" color="error">
+            {blockReason}
+          </Typography>
+        ) : null}
+      </Stack>
+    </Stack>
   )
 }

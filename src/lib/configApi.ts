@@ -71,11 +71,37 @@ export type ReportAuthor = {
   displayName: string
 }
 
-export type ServerReport = {
+export type ReportActivityAction =
+  | 'created'
+  | 'opened'
+  | 'stage'
+  | 'note'
+  | 'sent'
+  | 'unsent'
+  | 'updated'
+
+export type ReportActivity = {
   id: string
+  at: string
+  action: ReportActivityAction
   userId: string
   username: string
   displayName: string
+  detail?: string
+  stageKey?: ReportStageKey
+  stageLabel?: string
+}
+
+export type ServerReport = {
+  id: string
+  /** مالک / سازنده — ثابت */
+  userId: string
+  username: string
+  displayName: string
+  /** آخرین ویرایشگر */
+  lastActorUserId?: string
+  lastActorUsername?: string
+  lastActorDisplayName?: string
   typeId: string
   typeTitle: string
   branchId: number
@@ -92,6 +118,7 @@ export type ServerReport = {
   updatedAt: string
   sentAt?: string
   note?: string
+  activity?: ReportActivity[]
 }
 
 export async function postReportLog(body: {
@@ -109,6 +136,7 @@ export async function postReportLog(body: {
   query?: string
   note?: string
   markSent?: boolean
+  action?: ReportActivityAction
 }): Promise<ServerReport> {
   const res = await fetch(apiUrl('api/reports'), {
     method: 'POST',

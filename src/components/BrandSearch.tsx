@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { Box, Button, Stack, TextField, Typography } from '@smartx/design-system'
 import type { BrandBranch } from '../data/types'
 import { loadBrands, searchBrands } from '../lib/brands'
 import { loadHistory } from '../lib/history'
@@ -18,7 +19,6 @@ function hasLock(item: BrandBranch) {
   return !!item.lockNumber && item.lockNumber !== '0'
 }
 
-/** بخشی از متن که با جستجو یکی است پررنگ می‌شود. */
 function Highlight({ text, query }: { text: string; query: string }) {
   const q = query.trim()
   if (!q) return <>{text}</>
@@ -27,13 +27,19 @@ function Highlight({ text, query }: { text: string; query: string }) {
   return (
     <>
       {text.slice(0, i)}
-      <mark>{text.slice(i, i + q.length)}</mark>
+      <Box
+        component="mark"
+        sx={{ bgcolor: 'primary.primaryContainer', px: 0.25, borderRadius: 0.5 }}
+      >
+        {text.slice(i, i + q.length)}
+      </Box>
       {text.slice(i + q.length)}
     </>
   )
 }
 
 export function BrandSearch({ value, onChange }: Props) {
+  const rootRef = useRef<HTMLDivElement>(null)
   const [items, setItems] = useState<BrandBranch[]>([])
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
@@ -64,7 +70,6 @@ export function BrandSearch({ value, onChange }: Props) {
     [items, query],
   )
 
-  // مجموعه‌هایی که اخیراً بررسی شده‌اند (وقتی کادر جستجو خالی است)
   const recent = useMemo(() => {
     if (items.length === 0) return []
     const seen = new Set<string>()
@@ -81,10 +86,26 @@ export function BrandSearch({ value, onChange }: Props) {
 
   const showRecent = !query.trim()
   const list = showRecent ? recent : results
+  const listOpen = !value && open && (list.length > 0 || !showRecent)
 
   useEffect(() => {
     setActive(0)
   }, [query])
+
+  useEffect(() => {
+    if (!listOpen) return
+    const onPointerDown = (e: MouseEvent | TouchEvent) => {
+      const t = e.target as Node
+      if (rootRef.current?.contains(t)) return
+      setOpen(false)
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('touchstart', onPointerDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('touchstart', onPointerDown)
+    }
+  }, [listOpen])
 
   const pick = (item: BrandBranch) => {
     onChange(item)
@@ -110,26 +131,45 @@ export function BrandSearch({ value, onChange }: Props) {
     }
   }
 
-  const listOpen = !value && open && (list.length > 0 || !showRecent)
-
   return (
-    <div className="brand-search">
+    <Box ref={rootRef}>
       {value ? (
-        <>
-          <div className="field-label">مجموعه انتخاب‌شده</div>
-          <div className="brand-selected">
-            <span className="brand-selected-check" aria-hidden="true">
+        <Stack spacing={1}>
+          <Typography variant="labelMedium" color="text.secondary" display="block">
+            مجموعه انتخاب‌شده
+          </Typography>
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1.5}
+            sx={{
+              p: 1.5,
+              borderRadius: 2,
+              border: '1px solid',
+              borderColor: 'primary.main',
+              bgcolor: 'primary.primaryContainer',
+            }}
+          >
+            <Typography variant="titleSmall" color="primary" aria-hidden>
               ✓
-            </span>
-            <div className="brand-selected-text">
-              <strong>{fullName(value)}</strong>
+            </Typography>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="titleSmall" display="block">
+                {fullName(value)}
+              </Typography>
               {hasLock(value) ? (
-                <span className="muted">شماره قفل {value.lockNumber}</span>
+                <Typography
+                  variant="bodySmall"
+                  color="text.secondary"
+                  display="block"
+                >
+                  شماره قفل {value.lockNumber}
+                </Typography>
               ) : null}
-            </div>
-            <button
-              type="button"
-              className="btn btn-ghost"
+            </Box>
+            <Button
+              buttonVariant="text"
+              buttonSize="small"
               onClick={() => {
                 onChange(null)
                 setQuery('')
@@ -137,22 +177,23 @@ export function BrandSearch({ value, onChange }: Props) {
               }}
             >
               تغییر
-            </button>
-          </div>
-        </>
+            </Button>
+          </Stack>
+        </Stack>
       ) : (
-        <>
-          <label htmlFor="brand-q" className="field-label">
-            نام مجموعه یا شماره قفل
-          </label>
-          <input
+        <Stack spacing={1}>
+          <TextField
             id="brand-q"
-            className="input"
+            label="نام مجموعه یا شماره قفل"
             role="combobox"
             aria-expanded={listOpen}
             aria-controls="brand-listbox"
-            aria-activedescendant={listOpen && list[active] ? `brand-opt-${active}` : undefined}
-            placeholder={loading ? 'در حال آماده‌سازی…' : 'مثلاً: نام مجموعه یا ۱۲۳۴۵'}
+            aria-activedescendant={
+              listOpen && list[active] ? `brand-opt-${active}` : undefined
+            }
+            placeholder={
+              loading ? 'در حال آماده‌سازی…' : 'مثلاً: نام مجموعه یا ۱۲۳۴۵'
+            }
             value={query}
             onChange={(e) => {
               setQuery(e.target.value)
@@ -160,45 +201,99 @@ export function BrandSearch({ value, onChange }: Props) {
             }}
             onFocus={() => setOpen(true)}
             onKeyDown={onKeyDown}
+            fullWidth
             autoComplete="off"
           />
-          {error ? <div className="hint bad">{error}</div> : null}
-        </>
-      )}
-
-      {listOpen ? (
-        <div className="brand-results" role="listbox" id="brand-listbox">
-          {showRecent ? (
-            <div className="brand-results-title muted">اخیراً بررسی شده</div>
+          {error ? (
+            <Typography variant="bodySmall" color="error" display="block">
+              {error}
+            </Typography>
           ) : null}
-          {!showRecent && results.length === 0 ? (
-            <div className="muted" style={{ padding: 12 }}>
-              مجموعه‌ای پیدا نشد؛ نام یا شماره قفل را بررسی کنید.
-            </div>
-          ) : (
-            list.map((item, i) => (
-              <button
-                key={item.branchId}
-                id={`brand-opt-${i}`}
-                role="option"
-                aria-selected={i === active}
-                type="button"
-                tabIndex={-1}
-                className={`brand-result${i === active ? ' active' : ''}`}
-                onMouseEnter={() => setActive(i)}
-                onClick={() => pick(item)}
-              >
-                <strong>
-                  <Highlight text={fullName(item)} query={query} />
-                </strong>
-                {hasLock(item) ? (
-                  <span className="muted">شماره قفل {item.lockNumber}</span>
-                ) : null}
-              </button>
-            ))
-          )}
-        </div>
-      ) : null}
-    </div>
+
+          {listOpen ? (
+            <Box
+              role="listbox"
+              id="brand-listbox"
+              sx={{
+                maxHeight: 280,
+                overflowY: 'auto',
+                borderRadius: 2,
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+                boxShadow: 2,
+              }}
+            >
+              {showRecent ? (
+                <Typography
+                  variant="labelMedium"
+                  color="text.secondary"
+                  sx={{ px: 1.5, py: 1, display: 'block' }}
+                >
+                  اخیراً بررسی شده
+                </Typography>
+              ) : null}
+              {!showRecent && results.length === 0 ? (
+                <Typography
+                  variant="bodySmall"
+                  color="text.secondary"
+                  sx={{ p: 1.5, display: 'block' }}
+                >
+                  مجموعه‌ای پیدا نشد؛ نام یا شماره قفل را بررسی کنید.
+                </Typography>
+              ) : (
+                list.map((item, i) => (
+                  <Box
+                    key={item.branchId}
+                    id={`brand-opt-${i}`}
+                    component="button"
+                    type="button"
+                    role="option"
+                    aria-selected={i === active}
+                    tabIndex={-1}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onMouseEnter={() => setActive(i)}
+                    onClick={() => pick(item)}
+                    sx={{
+                      display: 'block',
+                      width: '100%',
+                      textAlign: 'right',
+                      border: 0,
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: i === active ? 'action.hover' : 'transparent',
+                      px: 1.5,
+                      py: 1.25,
+                      cursor: 'pointer',
+                      font: 'inherit',
+                      color: 'inherit',
+                      '&:last-child': { borderBottom: 0 },
+                    }}
+                  >
+                    <Typography
+                      variant="titleSmall"
+                      component="div"
+                      display="block"
+                    >
+                      <Highlight text={fullName(item)} query={query} />
+                    </Typography>
+                    {hasLock(item) ? (
+                      <Typography
+                        variant="bodySmall"
+                        color="text.secondary"
+                        display="block"
+                        sx={{ mt: 0.25 }}
+                      >
+                        شماره قفل {item.lockNumber}
+                      </Typography>
+                    ) : null}
+                  </Box>
+                ))
+              )}
+            </Box>
+          ) : null}
+        </Stack>
+      )}
+    </Box>
   )
 }

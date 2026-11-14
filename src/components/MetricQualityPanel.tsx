@@ -1,4 +1,7 @@
+import { useMemo, useState } from 'react'
+import { Box, Card, Chip, Typography } from '@smartx/design-system'
 import { FEATURE_CATEGORIES, FEATURES } from '../data/catalog'
+import { metricQueryById } from '../data/metricQueries'
 import type {
   Importance,
   MetricKind,
@@ -26,16 +29,19 @@ export function MetricQualityPanel({
 }: Props) {
   return (
     <div className="metric-admin">
-      <header className="metric-admin-intro glass-card">
-        <h3>کیفی شاخص‌ها</h3>
-        <p className="muted">
+      <Card elevation={1} sx={{ p: 1, mb: 2 }}>
+        <Typography variant="titleLarge">کیفی شاخص‌ها</Typography>
+        <Typography variant="bodySmall" color="text.secondary">
           همه شاخص‌های کاتالوگ در دو ستون. فقط سوپرادمین می‌تواند مقادیر را
-          تغییر دهد؛ افزودن شاخص از این صفحه غیرفعال است.
-        </p>
+          تغییر دهد. در هر کارت، «وضعیت پیشرفته» منبع و کوئری واقعی را نشان
+          می‌دهد (ترجیح: SmartPowerBI مثل Insight).
+        </Typography>
         {!canEdit ? (
-          <p className="metric-readonly-note">حالت مشاهده — ویرایش فقط برای سوپرادمین</p>
+          <Typography variant="bodySmall" color="warning.main" sx={{ mt: 1 }}>
+            حالت مشاهده — ویرایش فقط برای سوپرادمین
+          </Typography>
         ) : null}
-      </header>
+      </Card>
 
       {FEATURE_CATEGORIES.map((cat) => {
         const features = FEATURES.filter((f) => f.category === cat.id)
@@ -45,13 +51,13 @@ export function MetricQualityPanel({
         if (!features.length) return null
         return (
           <section key={cat.id} className="metric-feature-group">
-            <div className="metric-feature-group-head">
-              <h4>{cat.title}</h4>
-              <span className="muted">
+            <Box className="metric-feature-group-head" sx={{ mb: 1.5 }}>
+              <Typography variant="titleMedium">{cat.title}</Typography>
+              <Typography variant="bodySmall" color="text.secondary">
                 {cat.description}
                 {catRules.length ? ` · ${catRules.length} شاخص` : ''}
-              </span>
-            </div>
+              </Typography>
+            </Box>
 
             <div className="metric-feature-grid">
               {features.map((feature) => {
@@ -60,14 +66,28 @@ export function MetricQualityPanel({
                 )
                 return (
                   <div key={feature.id} className="metric-feature-block">
-                    <div className="metric-feature-title">
-                      <strong>{feature.title}</strong>
-                      <span className="chip">
-                        {featureRules.length
-                          ? `${featureRules.length} شاخص`
-                          : 'بدون شاخص'}
-                      </span>
-                    </div>
+                    <Box
+                      className="metric-feature-title"
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 1,
+                        mb: 1,
+                      }}
+                    >
+                      <Typography variant="titleSmall">
+                        {feature.title}
+                      </Typography>
+                      <Chip
+                        size="small"
+                        label={
+                          featureRules.length
+                            ? `${featureRules.length} شاخص`
+                            : 'بدون شاخص'
+                        }
+                      />
+                    </Box>
 
                     {featureRules.length === 0 ? (
                       <p className="muted metric-empty">
@@ -371,6 +391,164 @@ function MetricCard({
           </select>
         </label>
       ) : null}
+
+      <MetricAdvancedStatus metricId={r.id} />
     </article>
+  )
+}
+
+function MetricAdvancedStatus({ metricId }: { metricId: string }) {
+  const [open, setOpen] = useState(false)
+  const [fromKey, setFromKey] = useState('14050717')
+  const [toKey, setToKey] = useState('14050817')
+  const [sw, setSw] = useState('11202')
+  const [branchId, setBranchId] = useState('7220')
+  const doc = metricQueryById(metricId)
+
+  const filledSql = useMemo(() => {
+    if (!doc) return ''
+    const fromYm = fromKey.slice(0, 6)
+    const toYm = toKey.slice(0, 6)
+    return doc.sql
+      .replaceAll('@sw', sw || '@sw')
+      .replaceAll('@branchId', branchId || '@branchId')
+      .replaceAll('@brandId', '@brandId')
+      .replaceAll('@fromKey', fromKey || '@fromKey')
+      .replaceAll('@toKey', toKey || '@toKey')
+      .replaceAll('@fromYm', fromYm || '@fromYm')
+      .replaceAll('@toYm', toYm || '@toYm')
+  }, [doc, sw, branchId, fromKey, toKey])
+
+  if (!doc) {
+    return (
+      <Box sx={{ mt: 1.5 }}>
+        <Typography variant="bodySmall" color="text.secondary">
+          وضعیت پیشرفته: کوئری برای این شاخص تعریف نشده است.
+        </Typography>
+      </Box>
+    )
+  }
+
+  return (
+    <Box
+      sx={{
+        mt: 1.5,
+        pt: 1.5,
+        borderTop: '1px solid',
+        borderColor: 'divider',
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: 'flex',
+          width: '100%',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          border: 0,
+          background: 'transparent',
+          cursor: 'pointer',
+          padding: 0,
+          font: 'inherit',
+          color: 'inherit',
+          textAlign: 'right',
+        }}
+      >
+        <Typography variant="labelMedium" display="block">
+          وضعیت پیشرفته
+        </Typography>
+        <Chip
+          size="small"
+          color={doc.shouldUsePowerBI ? 'success' : 'warning'}
+          label={doc.shouldUsePowerBI ? 'SmartPowerBI' : 'غیر BI'}
+        />
+      </button>
+
+      {open ? (
+        <Box sx={{ mt: 1.25 }}>
+          <Typography variant="bodySmall" color="text.secondary" display="block">
+            منبع: {doc.source}
+          </Typography>
+          <Typography variant="bodySmall" display="block" sx={{ mt: 0.75 }}>
+            {doc.note}
+          </Typography>
+          <Box
+            sx={{
+              display: 'grid',
+              gap: 1,
+              gridTemplateColumns: '1fr 1fr',
+              mt: 1.25,
+            }}
+          >
+            <label className="field">
+              <span>fromKey</span>
+              <input
+                className="input"
+                value={fromKey}
+                onChange={(e) => setFromKey(e.target.value)}
+                dir="ltr"
+              />
+            </label>
+            <label className="field">
+              <span>toKey</span>
+              <input
+                className="input"
+                value={toKey}
+                onChange={(e) => setToKey(e.target.value)}
+                dir="ltr"
+              />
+            </label>
+            <label className="field">
+              <span>@sw</span>
+              <input
+                className="input"
+                value={sw}
+                onChange={(e) => setSw(e.target.value)}
+                dir="ltr"
+              />
+            </label>
+            <label className="field">
+              <span>@branchId</span>
+              <input
+                className="input"
+                value={branchId}
+                onChange={(e) => setBranchId(e.target.value)}
+                dir="ltr"
+              />
+            </label>
+          </Box>
+          <Box
+            component="pre"
+            dir="ltr"
+            sx={{
+              mt: 1.25,
+              p: 1.25,
+              borderRadius: 2,
+              bgcolor: 'grey.900',
+              color: 'grey.100',
+              overflow: 'auto',
+              fontSize: 12,
+              lineHeight: 1.45,
+              whiteSpace: 'pre-wrap',
+              maxHeight: 220,
+            }}
+          >
+            {filledSql}
+          </Box>
+        </Box>
+      ) : (
+        <Typography
+          variant="bodySmall"
+          color="text.secondary"
+          display="block"
+          sx={{ mt: 0.5 }}
+        >
+          برای دیدن کوئری و پارامتر تاریخ کلیک کنید
+          {doc.shouldUsePowerBI ? ' · باید از PowerBI خوانده شود' : ''}
+        </Typography>
+      )}
+    </Box>
   )
 }

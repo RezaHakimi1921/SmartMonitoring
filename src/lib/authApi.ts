@@ -135,3 +135,28 @@ export async function resetUserPassword(
   }
   return data.user
 }
+
+/** ویرایش نام/رمز فقط برای کاربر جاری */
+export async function updateMyProfile(input: {
+  displayName?: string
+  password?: string
+  currentPassword?: string
+}): Promise<{ user: AuthUser | null; passwordChanged?: boolean }> {
+  const res = await fetch(apiUrl('api/auth/me'), {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const data = await parseJson<{
+    user: AuthUser | null
+    passwordChanged?: boolean
+  }>(res)
+  if (!res.ok) {
+    throw new Error(data.error || 'به‌روزرسانی پروفایل ناموفق')
+  }
+  return {
+    user: data.user ?? null,
+    passwordChanged: !!data.passwordChanged,
+  }
+}

@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link as RouterLink } from 'react-router-dom'
+import {
+  Box,
+  Button,
+  Card,
+  Stack,
+  Typography,
+} from '@smartx/design-system'
 import { formatJalaliLong, gregorianToJalali, toFaDigits } from '../lib/jalali'
 
 type Props = {
@@ -33,6 +40,50 @@ async function copyText(text: string, onFlash: Props['onFlash'], ok: string) {
   }
 }
 
+function MessageArea({
+  value,
+  onChange,
+  rows = 10,
+  id,
+  placeholder,
+}: {
+  value: string
+  onChange: (v: string) => void
+  rows?: number
+  id?: string
+  placeholder?: string
+}) {
+  return (
+    <Box
+      component="textarea"
+      id={id}
+      rows={rows}
+      value={value}
+      placeholder={placeholder}
+      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+        onChange(e.target.value)
+      }
+      sx={{
+        width: '100%',
+        boxSizing: 'border-box',
+        borderRadius: 2,
+        border: '1px solid',
+        borderColor: 'divider',
+        p: 1.5,
+        font: 'inherit',
+        resize: 'vertical',
+        bgcolor: 'background.paper',
+        mt: 1.5,
+        '&:focus': {
+          outline: '2px solid',
+          outlineColor: 'primary.main',
+          outlineOffset: 1,
+        },
+      }}
+    />
+  )
+}
+
 /** مرحله آخر: PDF + پیام مشتری + فرم دستیار */
 export function SendStep({
   customerMessage,
@@ -61,125 +112,142 @@ export function SendStep({
   const assist = editedAssist ?? assistantForm
 
   return (
-    <>
-      <h3 style={{ margin: '0 0 4px' }}>آماده ارسال و ثبت</h3>
-      <p className="muted" style={{ margin: '0 0 14px' }}>
-        PDF را دانلود کنید، متن پیام مشتری را بفرستید، و در صورت نیاز فرم دستیار
-        را کپی کنید.
-      </p>
+    <Stack spacing={2.5}>
+      <Box>
+        <Typography variant="titleLarge">آماده ارسال و ثبت</Typography>
+        <Typography variant="bodyMedium" color="text.secondary">
+          PDF را دانلود کنید، متن پیام مشتری را بفرستید، و در صورت نیاز فرم دستیار
+          را کپی کنید.
+        </Typography>
+      </Box>
 
-      <div className="send-actions">
-        <button
-          type="button"
-          className="btn btn-primary btn-large"
-          disabled={busy || pdfDisabled}
-          onClick={onDownload}
+      <Button
+        buttonVariant="filled"
+        buttonSize="standard"
+        disabled={busy || pdfDisabled}
+        loading={busy}
+        onClick={onDownload}
+        sx={{ alignSelf: 'flex-start' }}
+      >
+        دانلود PDF گزارش
+      </Button>
+
+      <Box>
+        <Typography
+          variant="labelMedium"
+          component="label"
+          htmlFor="op-note"
+          sx={{ display: 'block', mb: 0.75 }}
         >
-          {busy ? 'در حال ساخت…' : 'دانلود PDF گزارش'}
-        </button>
-      </div>
+          یادداشت کارشناس (اختیاری؛ در هر دو قالب می‌آید)
+        </Typography>
+        <MessageArea
+          id="op-note"
+          rows={2}
+          placeholder="مثلاً: هفته بعد درباره قطع اتصال پیگیری می‌کنیم"
+          value={note}
+          onChange={onNote}
+        />
+      </Box>
 
-      <label className="field-label" htmlFor="op-note" style={{ marginTop: 16 }}>
-        یادداشت کارشناس (اختیاری؛ در هر دو قالب می‌آید)
-      </label>
-      <textarea
-        id="op-note"
-        className="textarea"
-        rows={2}
-        placeholder="مثلاً: هفته بعد درباره قطع اتصال پیگیری می‌کنیم"
-        value={note}
-        onChange={(e) => onNote(e.target.value)}
-      />
-
-      <section className="panel glass-card" style={{ marginTop: 20 }}>
-        <div className="summary-row">
-          <h3 className="panel-title" style={{ margin: 0 }}>
+      <Card elevation={1} sx={{ p: 1 }}>
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          flexWrap="wrap"
+          gap={1}
+        >
+          <Typography variant="titleMedium">
             ۱) فرمت ارسال پیام به مشتری
-          </h3>
-          <div className="actions">
+          </Typography>
+          <Stack direction="row" spacing={0.5}>
             {editedMsg !== null ? (
-              <button
-                type="button"
-                className="btn btn-ghost"
+              <Button
+                buttonVariant="text"
+                buttonSize="small"
                 onClick={() => setEditedMsg(null)}
               >
                 بازگرداندن خودکار
-              </button>
+              </Button>
             ) : null}
-            <button
-              type="button"
-              className="btn btn-secondary"
+            <Button
+              buttonVariant="outlined"
+              buttonSize="small"
               onClick={() => void copyText(msg, onFlash, 'متن پیام مشتری کپی شد')}
             >
               کپی پیام مشتری
-            </button>
-          </div>
-        </div>
-        <textarea
-          className="textarea message-edit"
-          rows={10}
-          value={msg}
-          onChange={(e) => setEditedMsg(e.target.value)}
-        />
-      </section>
+            </Button>
+          </Stack>
+        </Stack>
+        <MessageArea value={msg} onChange={setEditedMsg} />
+      </Card>
 
-      <section className="panel glass-card" style={{ marginTop: 16 }}>
-        <div className="summary-row">
-          <h3 className="panel-title" style={{ margin: 0 }}>
+      <Card elevation={1} sx={{ p: 1 }}>
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          flexWrap="wrap"
+          gap={1}
+        >
+          <Typography variant="titleMedium">
             ۲) فرمت اطلاعات برای ثبت فرم دستیار
-          </h3>
-          <div className="actions">
+          </Typography>
+          <Stack direction="row" spacing={0.5}>
             {editedAssist !== null ? (
-              <button
-                type="button"
-                className="btn btn-ghost"
+              <Button
+                buttonVariant="text"
+                buttonSize="small"
                 onClick={() => setEditedAssist(null)}
               >
                 بازگرداندن خودکار
-              </button>
+              </Button>
             ) : null}
-            <button
-              type="button"
-              className="btn btn-secondary"
+            <Button
+              buttonVariant="outlined"
+              buttonSize="small"
               onClick={() =>
                 void copyText(assist, onFlash, 'متن فرم دستیار کپی شد')
               }
             >
               کپی فرم دستیار
-            </button>
-          </div>
-        </div>
-        <textarea
-          className="textarea message-edit"
-          rows={10}
-          value={assist}
-          onChange={(e) => setEditedAssist(e.target.value)}
-        />
-      </section>
+            </Button>
+          </Stack>
+        </Stack>
+        <MessageArea value={assist} onChange={setEditedAssist} />
+      </Card>
 
-      <div className="sent-box">
+      <Card elevation={1} sx={{ p: 2 }}>
         {sentAt ? (
-          <p>ارسال‌شده برای مشتری · {sentText(sentAt)}</p>
+          <Typography variant="bodyMedium" sx={{ mb: 1.5 }}>
+            ارسال‌شده برای مشتری · {sentText(sentAt)}
+          </Typography>
         ) : (
-          <p className="muted">هنوز به‌عنوان ارسال‌شده ثبت نشده است.</p>
+          <Typography
+            variant="bodyMedium"
+            color="text.secondary"
+            sx={{ mb: 1.5 }}
+          >
+            هنوز به‌عنوان ارسال‌شده ثبت نشده است.
+          </Typography>
         )}
-        <button
-          type="button"
-          className={sentAt ? 'btn btn-ghost' : 'btn btn-primary'}
+        <Button
+          buttonVariant={sentAt ? 'text' : 'filled'}
           onClick={onToggleSent}
         >
           {sentAt ? 'لغو ثبت ارسال' : 'ثبت به‌عنوان ارسال‌شده'}
-        </button>
-      </div>
+        </Button>
+      </Card>
 
-      <div className="actions" style={{ marginTop: 12 }}>
-        <Link to="/" className="btn btn-ghost">
+      <Stack direction="row" spacing={1} flexWrap="wrap">
+        <Button component={RouterLink} to="/" buttonVariant="text">
           شروع بررسی جدید
-        </Link>
-        <Link to="/reports" className="btn btn-ghost">
+        </Button>
+        <Button component={RouterLink} to="/reports" buttonVariant="text">
           صندوق گزارش‌ها
-        </Link>
-      </div>
-    </>
+        </Button>
+      </Stack>
+    </Stack>
   )
 }

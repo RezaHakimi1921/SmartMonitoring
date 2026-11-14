@@ -1,6 +1,17 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import {
+  Box,
+  Button,
+  Card,
+  Chip,
+  Select,
+  Snackbar,
+  Stack,
+  TextField,
+  Typography,
+} from '@smartx/design-system'
+import {
   createUser,
   listUsers,
   resetUserPassword,
@@ -10,6 +21,26 @@ import {
   type Role,
 } from '../lib/authApi'
 import { isStaff, roleLabel, useAuth } from '../lib/authContext'
+
+const tableSx = {
+  width: '100%',
+  tableLayout: 'fixed' as const,
+  borderCollapse: 'collapse' as const,
+  '& th, & td': {
+    textAlign: 'right',
+    py: 1.5,
+    px: 1.25,
+    borderBottom: '1px solid',
+    borderColor: 'divider',
+    verticalAlign: 'middle',
+    overflow: 'hidden',
+  },
+  '& th': {
+    typography: 'labelMedium',
+    color: 'text.secondary',
+    whiteSpace: 'nowrap',
+  },
+}
 
 export function UsersPage() {
   const { user: me } = useAuth()
@@ -23,6 +54,7 @@ export function UsersPage() {
   const [role, setRole] = useState<Role>('user')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
+  const [roleOpen, setRoleOpen] = useState(false)
 
   const reload = async () => {
     setLoading(true)
@@ -102,138 +134,245 @@ export function UsersPage() {
     return <Navigate to="/" replace />
   }
 
+  const roleOptions =
+    me?.role === 'superadmin'
+      ? [
+          { id: 'user', label: 'کاربر' },
+          { id: 'admin', label: 'ادمین' },
+        ]
+      : [{ id: 'user', label: 'کاربر' }]
+
   return (
-    <>
-      <section className="page-intro">
-        <h2 style={{ margin: 0, fontSize: 22 }}>مدیریت کاربران</h2>
-        <p>
+    <Stack spacing={3}>
+      <Box>
+        <Typography variant="headlineSmall" display="block">
+          مدیریت کاربران
+        </Typography>
+        <Typography
+          variant="bodyMedium"
+          color="text.secondary"
+          display="block"
+          sx={{ mt: 0.5 }}
+        >
           نقش‌ها: کاربر (گزارش می‌گیرد)، ادمین (تنظیمات و داشبورد)، سوپرادمین
           (همه‌چیز؛ ساخت ادمین فقط با سوپرادمین).
-        </p>
-      </section>
+        </Typography>
+      </Box>
 
-      <div className="admin-grid">
-        <form className="panel glass-card" onSubmit={onCreate}>
-          <h3 className="panel-title">کاربر جدید</h3>
-          <label className="field">
-            <span>نام کاربری</span>
-            <input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              minLength={3}
-              autoComplete="off"
-            />
-          </label>
-          <label className="field">
-            <span>نام نمایشی</span>
-            <input
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="اختیاری"
-            />
-          </label>
-          <label className="field">
-            <span>نقش</span>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as Role)}
-            >
-              <option value="user">کاربر</option>
-              {me?.role === 'superadmin' ? (
-                <option value="admin">ادمین</option>
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 2,
+          gridTemplateColumns: { xs: '1fr', md: 'minmax(280px, 340px) 1fr' },
+          alignItems: 'start',
+        }}
+      >
+        <Card elevation={1} title="کاربر جدید" sx={{ p: 1 }}>
+          <Box component="form" onSubmit={onCreate}>
+            <Stack spacing={2}>
+              <TextField
+                label="نام کاربری"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                fullWidth
+                inputProps={{ minLength: 3, autoComplete: 'off' }}
+              />
+              <TextField
+                label="نام نمایشی"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="اختیاری"
+                fullWidth
+              />
+              <Box>
+                <Typography
+                  variant="labelMedium"
+                  display="block"
+                  sx={{ mb: 0.75 }}
+                >
+                  نقش
+                </Typography>
+                <Select
+                  value={role}
+                  options={roleOptions}
+                  open={roleOpen}
+                  onOpenChange={setRoleOpen}
+                  onChange={(id) => setRole(id as Role)}
+                  placeholder="نقش"
+                />
+              </Box>
+              <TextField
+                label="رمز عبور"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                fullWidth
+                inputProps={{ minLength: 6, autoComplete: 'new-password' }}
+              />
+              {error ? (
+                <Typography variant="bodySmall" color="error" display="block">
+                  {error}
+                </Typography>
               ) : null}
-            </select>
-          </label>
-          <label className="field">
-            <span>رمز عبور</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              autoComplete="new-password"
-            />
-          </label>
-          {error ? <p className="form-error">{error}</p> : null}
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            {busy ? 'در حال ذخیره…' : 'افزودن کاربر'}
-          </button>
-        </form>
+              <Button
+                type="submit"
+                buttonVariant="filled"
+                disabled={busy}
+                loading={busy}
+              >
+                افزودن کاربر
+              </Button>
+            </Stack>
+          </Box>
+        </Card>
 
-        <div className="panel glass-card">
-          <h3 className="panel-title">فهرست کاربران</h3>
+        <Card elevation={1} title="فهرست کاربران" sx={{ p: 1 }}>
           {loading ? (
-            <p className="muted" aria-busy="true">
+            <Typography
+              variant="bodyMedium"
+              color="text.secondary"
+              display="block"
+              aria-busy
+            >
               در حال بارگذاری…
-            </p>
+            </Typography>
           ) : (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>کاربر</th>
-                  <th>نقش</th>
-                  <th>وضعیت</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr key={u.id}>
-                    <td>
-                      <strong>{u.displayName}</strong>
-                      <div className="muted">{u.username}</div>
-                    </td>
-                    <td>
-                      {roleLabel(u.role)}
-                      {me?.role === 'superadmin' &&
-                      u.role !== 'superadmin' ? (
-                        <select
-                          className="select"
-                          style={{ marginTop: 6, height: 36 }}
-                          value={u.role}
-                          onChange={(e) =>
-                            void changeRole(
-                              u,
-                              e.target.value === 'admin' ? 'admin' : 'user',
-                            )
-                          }
-                        >
-                          <option value="user">کاربر</option>
-                          <option value="admin">ادمین</option>
-                        </select>
-                      ) : null}
-                    </td>
-                    <td>{u.active ? 'فعال' : 'غیرفعال'}</td>
-                    <td>
-                      <div className="actions" style={{ gap: 6 }}>
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          onClick={() => void changePassword(u)}
-                        >
-                          رمز
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          disabled={u.id === me?.id || u.role === 'superadmin'}
-                          onClick={() => void toggleActive(u)}
-                        >
-                          {u.active ? 'غیرفعال' : 'فعال'}
-                        </button>
-                      </div>
-                    </td>
+            <Box sx={{ overflowX: 'auto' }}>
+              <Box component="table" sx={tableSx}>
+                <thead>
+                  <tr>
+                    <th style={{ width: '32%' }}>کاربر</th>
+                    <th style={{ width: '22%' }}>نقش</th>
+                    <th style={{ width: '14%' }}>وضعیت</th>
+                    <th style={{ width: '32%' }}>اقدام</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {users.map((u) => (
+                    <tr key={u.id}>
+                      <td>
+                        <Stack spacing={0.25}>
+                          <Typography variant="titleSmall" display="block">
+                            {u.displayName || u.username}
+                          </Typography>
+                          <Typography
+                            variant="bodySmall"
+                            color="text.secondary"
+                            display="block"
+                            dir="ltr"
+                            sx={{ textAlign: 'right' }}
+                          >
+                            {u.username}
+                          </Typography>
+                        </Stack>
+                      </td>
+                      <td>
+                        <Stack spacing={1}>
+                          <Chip
+                            size="small"
+                            label={roleLabel(u.role)}
+                            color={
+                              u.role === 'superadmin'
+                                ? 'primary'
+                                : u.role === 'admin'
+                                  ? 'success'
+                                  : 'default'
+                            }
+                            sx={{ alignSelf: 'flex-start' }}
+                          />
+                          {me?.role === 'superadmin' &&
+                          u.role !== 'superadmin' ? (
+                            <Box
+                              component="select"
+                              aria-label={`نقش ${u.username}`}
+                              value={u.role}
+                              onChange={(e) =>
+                                void changeRole(
+                                  u,
+                                  e.target.value === 'admin' ? 'admin' : 'user',
+                                )
+                              }
+                              sx={{
+                                width: '100%',
+                                maxWidth: 140,
+                                height: 36,
+                                borderRadius: 1.5,
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                px: 1.25,
+                                bgcolor: 'background.paper',
+                                font: 'inherit',
+                                color: 'text.primary',
+                                display: 'block',
+                              }}
+                            >
+                              <option value="user">کاربر</option>
+                              <option value="admin">ادمین</option>
+                            </Box>
+                          ) : null}
+                        </Stack>
+                      </td>
+                      <td>
+                        <Chip
+                          size="small"
+                          label={u.active ? 'فعال' : 'غیرفعال'}
+                          color={u.active ? 'success' : 'default'}
+                          variant={u.active ? 'filled' : 'outlined'}
+                        />
+                      </td>
+                      <td>
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          flexWrap="wrap"
+                          useFlexGap
+                        >
+                          <Button
+                            buttonVariant="outlined"
+                            buttonSize="small"
+                            onClick={() => void changePassword(u)}
+                          >
+                            رمز
+                          </Button>
+                          <Button
+                            buttonVariant="text"
+                            buttonSize="small"
+                            disabled={
+                              u.id === me?.id || u.role === 'superadmin'
+                            }
+                            onClick={() => void toggleActive(u)}
+                          >
+                            {u.active ? 'غیرفعال' : 'فعال'}
+                          </Button>
+                        </Stack>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Box>
+            </Box>
           )}
-        </div>
-      </div>
+        </Card>
+      </Box>
 
-      {toast ? <div className="toast">{toast}</div> : null}
-    </>
+      <Box
+        sx={{
+          position: 'fixed',
+          bottom: 24,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1400,
+        }}
+      >
+        <Snackbar
+          open={!!toast}
+          message={toast}
+          severity="success"
+          onClose={() => setToast('')}
+        />
+      </Box>
+    </Stack>
   )
 }
