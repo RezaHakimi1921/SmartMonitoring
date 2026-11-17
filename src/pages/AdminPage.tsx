@@ -1,18 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import {
-  Box,
-  Button,
-  Card,
-  Chip,
-  Snackbar,
-  Stack,
-  TabDesktop,
-  TextField,
-  Typography,
-} from '@smartx/design-system'
+import { DidbanToast } from '../components/DidbanToast'
 import { MetricQualityPanel } from '../components/MetricQualityPanel'
 import { TemplateTagEditor } from '../components/TemplateTagEditor'
+import { Ico } from '../components/make/icons'
 import { FEATURES, SOURCE_LABEL } from '../data/catalog'
 import { DIAG_CATEGORIES, DIAG_ITEMS } from '../data/diagCatalog'
 import type {
@@ -28,7 +19,9 @@ import {
   resetServerConfig,
   saveConfig,
 } from '../lib/configApi'
+import { toFaDigits } from '../lib/jalali'
 import { setCachedConfig } from '../lib/storage'
+import styles from './AdminPage.module.css'
 
 const MODES: { id: FeatureMode | 'off'; label: string; hint: string }[] = [
   {
@@ -53,7 +46,9 @@ const TABS = [
   { value: 'diag', label: 'نکات پیگیری' },
   { value: 'metrics', label: 'کیفی شاخص‌ها' },
   { value: 'templates', label: 'قالب پیام' },
-]
+] as const
+
+type TabId = (typeof TABS)[number]['value']
 
 export function AdminPage() {
   const { user, reloadConfig } = useAuth()
@@ -76,9 +71,7 @@ export function AdminPage() {
     }
     return 'features'
   })()
-  const [tab, setTab] = useState<'features' | 'diag' | 'metrics' | 'templates'>(
-    initialTab,
-  )
+  const [tab, setTab] = useState<TabId>(initialTab)
 
   useEffect(() => {
     void (async () => {
@@ -109,7 +102,7 @@ export function AdminPage() {
 
   const flash = (msg: string) => {
     setToast(msg)
-    window.setTimeout(() => setToast(''), 2200)
+    window.setTimeout(() => setToast(''), 2400)
   }
 
   if (!isStaff(user?.role)) {
@@ -269,466 +262,333 @@ export function AdminPage() {
     [active],
   )
 
+  const changeTab = (next: TabId) => {
+    setTab(next)
+    const url = new URL(window.location.href)
+    url.searchParams.set('tab', next)
+    window.history.replaceState(null, '', url.pathname + url.search)
+  }
+
   if (!config) {
     return (
-      <Card elevation={1} sx={{ p: 2 }} aria-busy>
-        <Typography variant="bodyMedium" color="text.secondary">
-          در حال بارگذاری تنظیمات سرور…
-        </Typography>
-        {error ? (
-          <Typography variant="bodySmall" color="error" sx={{ mt: 1 }}>
-            {error}
-          </Typography>
-        ) : null}
-      </Card>
+      <div className={styles.page}>
+        <div className={styles.panel}>
+          <p className={styles.muted}>در حال بارگذاری تنظیمات سرور…</p>
+          {error ? <div className={styles.error}>{error}</div> : null}
+        </div>
+      </div>
     )
   }
 
   return (
-    <Stack spacing={3} sx={{ pb: 10 }}>
-      <Box>
-        <Typography variant="headlineSmall" display="block">
-          تنظیمات انواع بررسی
-        </Typography>
-        <Typography
-          variant="bodyMedium"
-          color="text.secondary"
-          display="block"
-          sx={{ mt: 0.5 }}
-        >
-          پیش‌فرض بخش‌ها، نکات پیگیری، آستانه‌ها و قالب پیام روی سرور ذخیره
-          می‌شود و برای همه کاربران اعمال می‌گردد.
-        </Typography>
-      </Box>
+    <div className={styles.page}>
+      <div className={styles.head}>
+        <div className={styles.eyebrow}>مدیریت</div>
+        <h1>تنظیمات بررسی</h1>
+        <p>
+          پیش‌فرض بخش‌ها، نکات پیگیری، آستانه‌ها و قالب پیام روی سرور ذخیره می‌شود
+          و برای همه کاربران اعمال می‌گردد.
+        </p>
+      </div>
 
-      {error ? (
-        <Typography variant="bodyMedium" color="error">
-          {error}
-        </Typography>
-      ) : null}
+      {error ? <div className={styles.error}>{error}</div> : null}
 
-      <TabDesktop
-        items={TABS}
-        value={tab}
-        onChange={(v) => {
-          const next = v as 'features' | 'diag' | 'metrics' | 'templates'
-          setTab(next)
-          const url = new URL(window.location.href)
-          url.searchParams.set('tab', next)
-          window.history.replaceState(null, '', url.pathname + url.search)
-        }}
-      />
+      <div className={styles.tabs} role="tablist" aria-label="بخش‌های تنظیمات">
+        {TABS.map((t, i) => (
+          <button
+            key={t.value}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.value}
+            className={tab === t.value ? styles.tabOn : styles.tab}
+            onClick={() => changeTab(t.value)}
+          >
+            <span className={styles.tabNum}>{toFaDigits(i + 1)}</span>
+            {t.label}
+          </button>
+        ))}
+      </div>
 
       {(tab === 'features' || tab === 'diag') && (
-        <Box
-          sx={{
-            display: 'grid',
-            gap: 2,
-            gridTemplateColumns: { xs: '1fr', md: 'minmax(240px, 300px) 1fr' },
-            alignItems: 'start',
-          }}
-        >
-          <Card elevation={1} title="انواع بررسی" sx={{ p: 1 }}>
-            <Stack spacing={1}>
+        <div className={styles.layout}>
+          <aside className={styles.panel}>
+            <h2 className={styles.panelTitle}>قالب‌های فعال</h2>
+            <div className={styles.typeList}>
               {types.map((t: ReviewType) => {
                 const selected = t.id === activeTypeId
                 return (
-                  <Box
+                  <button
                     key={t.id}
-                    component="button"
                     type="button"
+                    className={selected ? styles.typeCardOn : styles.typeCard}
                     onClick={() => setActiveTypeId(t.id)}
-                    sx={{
-                      textAlign: 'right',
-                      cursor: 'pointer',
-                      p: 1.5,
-                      borderRadius: 2,
-                      border: '1px solid',
-                      borderColor: selected ? 'primary.main' : 'divider',
-                      bgcolor: selected
-                        ? 'primary.primaryContainer'
-                        : 'background.paper',
-                      font: 'inherit',
-                      color: 'inherit',
-                      display: 'block',
-                      width: '100%',
-                    }}
                   >
-                    <Typography variant="titleSmall" display="block">
+                    <div className={styles.typeTitle}>
                       {t.title || 'بدون عنوان'}
-                    </Typography>
-                    <Typography
-                      variant="bodySmall"
-                      color="text.secondary"
-                      display="block"
-                      sx={{ mt: 0.5 }}
-                    >
+                    </div>
+                    <div className={styles.typeDesc}>
                       {t.description || 'بدون توضیح'}
-                    </Typography>
-                  </Box>
+                    </div>
+                  </button>
                 )
               })}
-            </Stack>
+            </div>
             {!canEditReviewTypes ? (
-              <Typography
-                variant="bodySmall"
-                color="text.secondary"
-                display="block"
-                sx={{ mt: 1.5 }}
-              >
+              <p className={styles.help} style={{ marginTop: 12 }}>
                 ویرایش نام و توضیح فقط برای سوپرادمین است.
-              </Typography>
+              </p>
             ) : null}
-          </Card>
+          </aside>
 
-          <Stack spacing={2}>
+          <div className={styles.stack}>
             {active && canEditReviewTypes ? (
-              <Card elevation={1} title="نام و توضیح این نوع بررسی" sx={{ p: 1 }}>
-                <Stack spacing={2}>
-                  <TextField
-                    label="عنوان بررسی"
+              <section className={styles.panel}>
+                <h2 className={styles.panelTitle}>نام و توضیح این قالب</h2>
+                <label className={styles.field}>
+                  <span>عنوان بررسی</span>
+                  <input
                     value={active.title}
                     onChange={(e) =>
                       updateReviewType(active.id, { title: e.target.value })
                     }
-                    fullWidth
                     required
-                    helperText="در صفحهٔ اول و گزارش‌ها نمایش داده می‌شود"
                   />
-                  <TextField
-                    label="توضیح / زیرعنوان"
+                  <span className={styles.help}>
+                    در صفحهٔ اول و گزارش‌ها نمایش داده می‌شود
+                  </span>
+                </label>
+                <label className={styles.field}>
+                  <span>توضیح / زیرعنوان</span>
+                  <textarea
                     value={active.description}
                     onChange={(e) =>
                       updateReviewType(active.id, {
                         description: e.target.value,
                       })
                     }
-                    fullWidth
-                    multiline
-                    minRows={2}
-                    helperText="متن کوتاه زیر عنوان در کارت نوع بررسی"
                   />
-                </Stack>
-              </Card>
+                  <span className={styles.help}>
+                    متن کوتاه زیر عنوان در کارت نوع بررسی
+                  </span>
+                </label>
+              </section>
             ) : null}
 
-          <Card
-            elevation={1}
-            title={
-              tab === 'features'
-                ? `اتصال ویژگی‌ها${active ? ` · ${active.title}` : ''}`
-                : `پیش‌فرض نکات پیگیری${active ? ` · ${active.title}` : ''}`
-            }
-            sx={{ p: 1 }}
-          >
-            {!active ? (
-              <Typography variant="bodyMedium" color="text.secondary">
-                یک نوع را انتخاب کنید.
-              </Typography>
-            ) : tab === 'features' ? (
-              <Box sx={{ overflowX: 'auto' }}>
-                <Box
-                  component="table"
-                  sx={{
-                    width: '100%',
-                    tableLayout: 'fixed',
-                    borderCollapse: 'collapse',
-                    '& th, & td': {
-                      textAlign: 'right',
-                      py: 1.5,
-                      px: 1.25,
-                      borderBottom: '1px solid',
-                      borderColor: 'divider',
-                      verticalAlign: 'top',
-                    },
-                    '& th': {
-                      typography: 'labelMedium',
-                      color: 'text.secondary',
-                      whiteSpace: 'nowrap',
-                    },
-                  }}
-                >
-                  <thead>
-                    <tr>
-                      <th style={{ width: '42%' }}>ویژگی</th>
-                      <th style={{ width: '18%' }}>منبع</th>
-                      <th style={{ width: '40%' }}>حالت</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {FEATURES.map((f) => {
-                      const current = active.features[f.id] ?? ''
-                      return (
-                        <tr key={f.id}>
-                          <td>
-                            <Typography variant="titleSmall" display="block">
-                              {f.title}
-                            </Typography>
-                            <Typography
-                              variant="bodySmall"
-                              color="text.secondary"
-                              display="block"
-                              sx={{ mt: 0.5 }}
+            <section className={styles.panel}>
+              <h2 className={styles.panelTitle}>
+                {tab === 'features'
+                  ? `اتصال ویژگی‌ها${active ? ` · ${active.title}` : ''}`
+                  : `پیش‌فرض نکات پیگیری${active ? ` · ${active.title}` : ''}`}
+              </h2>
+
+              {!active ? (
+                <p className={styles.muted}>یک نوع را انتخاب کنید.</p>
+              ) : tab === 'features' ? (
+                <div className={styles.tableWrap}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '42%' }}>ویژگی</th>
+                        <th style={{ width: '18%' }}>منبع</th>
+                        <th style={{ width: '40%' }}>حالت</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {FEATURES.map((f) => {
+                        const current = active.features[f.id] ?? ''
+                        return (
+                          <tr key={f.id}>
+                            <td>
+                              <div className={styles.featTitle}>{f.title}</div>
+                              <div className={styles.featDesc}>
+                                {f.description}
+                              </div>
+                            </td>
+                            <td>{SOURCE_LABEL[f.source]}</td>
+                            <td>
+                              <div
+                                className={styles.modes}
+                                role="radiogroup"
+                                aria-label={`حالت ${f.title}`}
+                              >
+                                {MODES.map((m) => {
+                                  const on = (current || 'off') === m.id
+                                  return (
+                                    <button
+                                      key={m.id}
+                                      type="button"
+                                      title={m.hint}
+                                      className={
+                                        on ? styles.modeOn : styles.mode
+                                      }
+                                      aria-checked={on}
+                                      role="radio"
+                                      onClick={() => setMode(f.id, m.id)}
+                                    >
+                                      {m.label}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className={styles.stack}>
+                  {DIAG_CATEGORIES.map((cat) => {
+                    const items = DIAG_ITEMS.filter(
+                      (d) => d.category === cat.id,
+                    )
+                    return (
+                      <div key={cat.id}>
+                        <div className={styles.catHead}>
+                          <div>
+                            <div className={styles.catTitle}>{cat.title}</div>
+                            <div className={styles.catDesc}>
+                              {cat.description}
+                            </div>
+                          </div>
+                          <div>
+                            <button
+                              type="button"
+                              className={styles.linkBtn}
+                              onClick={() => setDiagCategory(cat.id, true)}
                             >
-                              {f.description}
-                            </Typography>
-                          </td>
-                          <td>
-                            <Typography variant="bodySmall" display="block">
-                              {SOURCE_LABEL[f.source]}
-                            </Typography>
-                          </td>
-                          <td>
-                            <Stack
-                              direction="row"
-                              flexWrap="wrap"
-                              useFlexGap
-                              gap={0.75}
-                              role="radiogroup"
-                              aria-label={`حالت ${f.title}`}
+                              انتخاب همه
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.linkBtn}
+                              onClick={() => setDiagCategory(cat.id, false)}
                             >
-                              {MODES.map((m) => {
-                                const on = (current || 'off') === m.id
-                                return (
-                                  <Chip
-                                    key={m.id}
-                                    label={m.label}
-                                    size="small"
-                                    clickable
-                                    title={m.hint}
-                                    color={on ? 'primary' : 'default'}
-                                    variant={on ? 'filled' : 'outlined'}
-                                    onClick={() => setMode(f.id, m.id)}
-                                    aria-checked={on}
-                                    role="radio"
-                                  />
-                                )
-                              })}
-                            </Stack>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </Box>
-              </Box>
-            ) : (
-              <Stack spacing={2.5}>
-                {DIAG_CATEGORIES.map((cat) => {
-                  const items = DIAG_ITEMS.filter((d) => d.category === cat.id)
-                  return (
-                    <Box key={cat.id}>
-                      <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="flex-start"
-                        flexWrap="wrap"
-                        gap={1}
-                        sx={{ mb: 1 }}
-                      >
-                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Typography
-                            variant="titleMedium"
-                            component="div"
-                            sx={{ display: 'block' }}
-                          >
-                            {cat.title}
-                          </Typography>
-                          <Typography
-                            variant="bodySmall"
-                            color="text.secondary"
-                            component="div"
-                            sx={{ display: 'block', mt: 0.5 }}
-                          >
-                            {cat.description}
-                          </Typography>
-                        </Box>
-                        <Stack direction="row" spacing={0.5}>
-                          <Button
-                            buttonVariant="text"
-                            buttonSize="small"
-                            onClick={() => setDiagCategory(cat.id, true)}
-                          >
-                            انتخاب همه
-                          </Button>
-                          <Button
-                            buttonVariant="text"
-                            buttonSize="small"
-                            onClick={() => setDiagCategory(cat.id, false)}
-                          >
-                            لغو
-                          </Button>
-                        </Stack>
-                      </Stack>
-                      <Stack spacing={1}>
-                        {items.map((d) => {
-                          const on = diagSelected.has(d.id)
-                          return (
-                            <Box
-                              key={d.id}
-                              component="label"
-                              sx={{
-                                display: 'flex',
-                                gap: 1.25,
-                                alignItems: 'flex-start',
-                                p: 1.25,
-                                borderRadius: 2,
-                                border: '1px solid',
-                                borderColor: on ? 'primary.main' : 'divider',
-                                bgcolor: on
-                                  ? 'primary.primaryContainer'
-                                  : 'transparent',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={on}
-                                onChange={() => toggleDiagDefault(d.id)}
-                                style={{ marginTop: 4, flexShrink: 0 }}
-                              />
-                              <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
-                                <Typography
-                                  variant="titleSmall"
-                                  component="div"
-                                  sx={{ display: 'block' }}
-                                >
-                                  {d.title}
-                                </Typography>
-                                <Typography
-                                  variant="bodySmall"
-                                  color="text.secondary"
-                                  component="div"
-                                  sx={{ display: 'block' }}
-                                >
-                                  {d.hint}
-                                </Typography>
-                              </Stack>
-                            </Box>
-                          )
-                        })}
-                      </Stack>
-                    </Box>
-                  )
-                })}
-              </Stack>
-            )}
-          </Card>
-          </Stack>
-        </Box>
+                              لغو
+                            </button>
+                          </div>
+                        </div>
+                        <div className={styles.diagGrid}>
+                          {items.map((d) => {
+                            const on = diagSelected.has(d.id)
+                            return (
+                              <label
+                                key={d.id}
+                                className={
+                                  on ? styles.diagCardOn : styles.diagCard
+                                }
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={on}
+                                  onChange={() => toggleDiagDefault(d.id)}
+                                />
+                                <div>
+                                  <div className={styles.diagTitle}>
+                                    {d.title}
+                                  </div>
+                                  <div className={styles.diagHint}>{d.hint}</div>
+                                </div>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </section>
+          </div>
+        </div>
       )}
 
       {tab === 'metrics' ? (
-        <MetricQualityPanel
-          rules={config.metricRules}
-          canEdit={canEditMetrics}
-          onUpdate={updateRule}
-          onSetKind={setRuleKind}
-        />
+        <section className={styles.panel}>
+          <MetricQualityPanel
+            rules={config.metricRules}
+            canEdit={canEditMetrics}
+            onUpdate={updateRule}
+            onSetKind={setRuleKind}
+          />
+        </section>
       ) : null}
 
       {tab === 'templates' ? (
-        <Stack spacing={2}>
-          <TemplateTagEditor
-            title="قالب ارسال پیام به مشتری"
-            value={config.customerMessageTemplate}
-            onChange={(customerMessageTemplate) =>
-              setConfig({ ...config, customerMessageTemplate })
-            }
-          />
-          <TemplateTagEditor
-            title="قالب ثبت فرم دستیار"
-            value={config.assistantFormTemplate}
-            onChange={(assistantFormTemplate) =>
-              setConfig({ ...config, assistantFormTemplate })
-            }
-          />
-        </Stack>
+        <div className={styles.stack}>
+          <section className={styles.panel}>
+            <TemplateTagEditor
+              title="قالب ارسال پیام به مشتری"
+              value={config.customerMessageTemplate}
+              onChange={(customerMessageTemplate) =>
+                setConfig({ ...config, customerMessageTemplate })
+              }
+            />
+          </section>
+          <section className={styles.panel}>
+            <TemplateTagEditor
+              title="قالب ثبت فرم دستیار"
+              value={config.assistantFormTemplate}
+              onChange={(assistantFormTemplate) =>
+                setConfig({ ...config, assistantFormTemplate })
+              }
+            />
+          </section>
+        </div>
       ) : null}
 
-      <Box
-        sx={{
-          position: 'sticky',
-          bottom: 0,
-          zIndex: 10,
-          mt: 2,
-          mx: -1,
-          px: 2,
-          py: 1.5,
-          bgcolor: 'background.paper',
-          borderTop: '1px solid',
-          borderColor: 'divider',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 2,
-          flexWrap: 'wrap',
-        }}
-      >
-        <Typography
-          variant="bodySmall"
-          color={dirty ? 'warning.main' : 'text.secondary'}
-        >
+      <footer className={styles.footer}>
+        <div className={dirty ? styles.dirty : styles.ok}>
           {dirty ? 'تغییرات ذخیره نشده است' : 'همه تغییرات ذخیره شده است'}
-        </Typography>
-        <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
+        </div>
+        <div className={styles.footerActions}>
           {confirmReset ? (
             <>
-              <Typography variant="bodySmall">
+              <span className={styles.muted}>
                 همه تنظیمات سرور به حالت اولیه برگردد؟
-              </Typography>
-              <Button
-                buttonVariant="filled"
+              </span>
+              <button
+                type="button"
+                className={styles.btnPrimary}
                 disabled={busy}
-                loading={busy}
                 onClick={() => void reset()}
               >
+                {Ico.check}
                 بله، بازنشانی
-              </Button>
-              <Button
-                buttonVariant="text"
+              </button>
+              <button
+                type="button"
+                className={styles.btnGhost}
                 onClick={() => setConfirmReset(false)}
               >
                 انصراف
-              </Button>
+              </button>
             </>
           ) : (
             <>
-              <Button
-                buttonVariant="text"
+              <button
+                type="button"
+                className={styles.btnGhost}
                 onClick={() => setConfirmReset(true)}
               >
                 بازنشانی به پیش‌فرض
-              </Button>
-              <Button
-                buttonVariant="filled"
+              </button>
+              <button
+                type="button"
+                className={styles.btnPrimary}
                 disabled={!dirty || busy}
-                loading={busy}
                 onClick={() => void persist()}
               >
+                {Ico.check}
                 ذخیره روی سرور
-              </Button>
+              </button>
             </>
           )}
-        </Stack>
-      </Box>
+        </div>
+      </footer>
 
-      <Box
-        sx={{
-          position: 'fixed',
-          bottom: 24,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 1400,
-        }}
-      >
-        <Snackbar
-          open={!!toast}
-          message={toast}
-          severity="success"
-          onClose={() => setToast('')}
-        />
-      </Box>
-    </Stack>
+      <DidbanToast message={toast} />
+    </div>
   )
 }

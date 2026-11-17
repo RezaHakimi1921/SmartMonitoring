@@ -83,7 +83,11 @@ export default function App() {
               />
               <Route path="feedback" element={<FeedbackPage />} />
               <Route path="feedback/new" element={<FeedbackNewPage />} />
-              <Route path="feedback/:id" element={<FeedbackDetailPage />} />
+              <Route
+                path="feedback/:id/edit"
+                element={<FeedbackDetailPage />}
+              />
+              <Route path="feedback/:id" element={<FeedbackPage />} />
               <Route path="profile" element={<ProfilePage />} />
               <Route
                 path="metric-sources"

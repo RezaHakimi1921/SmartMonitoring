@@ -1,57 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link as RouterLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { useTheme as useMuiTheme } from '@mui/material/styles'
-import {
-  AppBar,
-  Box,
-  Button,
-  Chip,
-  IconButton,
-  Navigation,
-  Typography,
-  LogoutBulk,
-  HomeBulk,
-  ChartBulk,
-  InfoCircleOutline,
-  Setting2Bulk,
-  UserBulk,
-  ClipboardTextBulk,
-} from '@smartx/design-system'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { DidbanIcon, type DidbanIconName } from './didbanIcons'
 import { isStaff, roleLabel, useAuth } from '../lib/authContext'
-import { formatJalaliLong, todayJalali } from '../lib/jalali'
+import { fetchFeedback } from '../lib/feedbackApi'
+import { toFaDigits } from '../lib/jalali'
+import styles from './AppShell.module.css'
 
-function titleFor(pathname: string) {
-  if (pathname.startsWith('/users')) return 'مدیریت کاربران'
-  if (pathname.startsWith('/reports')) return 'صندوق گزارش‌ها'
-  if (pathname.startsWith('/feedback/new')) return 'ثبت پیشنهاد'
-  if (pathname.match(/^\/feedback\/[^/]+$/)) return 'جزئیات پیشنهاد'
-  if (pathname.startsWith('/feedback')) return 'صندوق پیشنهادات'
+function crumbFor(pathname: string) {
+  if (pathname.startsWith('/users')) return 'کاربران'
+  if (pathname.startsWith('/reports')) return 'گزارش‌ها'
+  if (pathname.startsWith('/feedback/new')) return 'پیشنهاد جدید'
+  if (pathname.match(/^\/feedback\/[^/]+$/)) return 'پیشنهادات'
+  if (pathname.startsWith('/feedback')) return 'پیشنهادات'
   if (pathname.startsWith('/profile')) return 'حساب من'
-  if (pathname.startsWith('/admin')) return 'تنظیمات انواع بررسی'
-  if (pathname.startsWith('/history')) return 'گزارش‌های این مرورگر'
-  if (pathname.startsWith('/help')) return 'راهنمای استفاده'
+  if (pathname.startsWith('/admin')) return 'تنظیمات بررسی'
+  if (pathname.startsWith('/help')) return 'راهنما'
   if (pathname.startsWith('/setup')) return 'تنظیم بررسی'
-  if (pathname.startsWith('/report')) return 'گزارش تجربه مشتری'
-  return 'نمای کلی بررسی'
-}
-
-function subtitleFor(pathname: string) {
-  if (pathname.startsWith('/report')) {
-    return 'نمایی سریع از وضعیت عملکرد و بازخورد مشتریان'
-  }
-  if (pathname.startsWith('/admin')) {
-    return 'ویژگی‌ها، آستانه‌ها و قالب پیام روی سرور'
-  }
-  if (pathname.startsWith('/reports')) {
-    return 'همه گزارش‌های تیم · فیلتر کاربر و مرحله'
-  }
-  if (pathname.startsWith('/feedback')) {
-    return 'لیست مشترک تیم · جزئیات، کامنت و ویرایش'
-  }
-  if (pathname.startsWith('/history')) {
-    return 'گزارش‌های ذخیره‌شده روی این مرورگر'
-  }
-  return 'پنل کنترل کیفیت اسمارت · دیدبان'
+  if (pathname.startsWith('/report')) return 'گزارش'
+  return 'بررسی جدید'
 }
 
 function activeId(pathname: string) {
@@ -61,203 +27,194 @@ function activeId(pathname: string) {
   if (pathname.startsWith('/help')) return 'help'
   if (pathname.startsWith('/admin')) return 'admin'
   if (pathname.startsWith('/users')) return 'users'
-  if (pathname.startsWith('/setup') || pathname.startsWith('/report')) return 'home'
   return 'home'
 }
 
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '؟'
+  if (parts.length === 1) return parts[0]!.slice(0, 2)
+  return `${parts[0]!.slice(0, 1)}${parts[1]!.slice(0, 1)}`
+}
+
+type NavItem = {
+  id: string
+  label: string
+  href: string
+  icon: DidbanIconName
+  badge?: string
+}
+
 export function AppShell() {
-  const theme = useMuiTheme()
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [navOpen, setNavOpen] = useState(false)
-  const iconColor = theme.palette.primary.main
-  const pageBg =
-    (theme.palette as { surfaceDim?: string }).surfaceDim ||
-    theme.palette.grey[100]
+  const [feedbackOpenCount, setFeedbackOpenCount] = useState(0)
 
   useEffect(() => {
     setNavOpen(false)
   }, [location.pathname])
 
-  const title = useMemo(() => titleFor(location.pathname), [location.pathname])
-  const subtitle = useMemo(
-    () => subtitleFor(location.pathname),
-    [location.pathname],
-  )
+  useEffect(() => {
+    let cancelled = false
+    void fetchFeedback({ status: 'open' })
+      .then((list) => {
+        if (!cancelled) setFeedbackOpenCount(list.length)
+      })
+      .catch(() => {
+        if (!cancelled) setFeedbackOpenCount(0)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [location.pathname])
 
-  const navigationItems = useMemo(() => {
-    const items = [
-      {
-        id: 'home',
-        label: 'بررسی جدید',
-        href: '/',
-        icon: <HomeBulk size={22} color={iconColor} />,
-      },
-      {
-        id: 'reports',
-        label: 'گزارش‌ها',
-        href: '/reports',
-        icon: <ChartBulk size={22} color={iconColor} />,
-      },
+  const crumb = useMemo(() => crumbFor(location.pathname), [location.pathname])
+  const current = activeId(location.pathname)
+
+  const mainNav: NavItem[] = useMemo(() => {
+    return [
+      { id: 'home', label: 'بررسی جدید', href: '/', icon: 'home' },
+      { id: 'reports', label: 'گزارش‌ها', href: '/reports', icon: 'report' },
       {
         id: 'feedback',
         label: 'پیشنهادات',
         href: '/feedback',
-        icon: <ClipboardTextBulk size={22} color={iconColor} />,
+        icon: 'message',
+        badge:
+          feedbackOpenCount > 0
+            ? toFaDigits(String(Math.min(feedbackOpenCount, 99)))
+            : undefined,
       },
-      {
-        id: 'help',
-        label: 'راهنما',
-        href: '/help',
-        icon: <InfoCircleOutline size={22} color={iconColor} />,
-      },
-      {
-        id: 'profile',
-        label: 'حساب من',
-        href: '/profile',
-        icon: <UserBulk size={22} color={iconColor} />,
-      },
+      { id: 'help', label: 'راهنما', href: '/help', icon: 'help' },
+      { id: 'profile', label: 'حساب من', href: '/profile', icon: 'user' },
     ]
-    if (isStaff(user?.role)) {
-      items.push(
-        {
-          id: 'admin',
-          label: 'تنظیمات بررسی',
-          href: '/admin',
-          icon: <Setting2Bulk size={22} color={iconColor} />,
-        },
-        {
-          id: 'users',
-          label: 'کاربران',
-          href: '/users',
-          icon: <UserBulk size={22} color={iconColor} />,
-        },
-      )
-    }
-    return items
-  }, [user?.role, iconColor])
+  }, [feedbackOpenCount])
+
+  const adminNav: NavItem[] = useMemo(() => {
+    if (!isStaff(user?.role)) return []
+    return [
+      { id: 'admin', label: 'تنظیمات بررسی', href: '/admin', icon: 'settings' },
+      { id: 'users', label: 'کاربران', href: '/users', icon: 'users' },
+    ]
+  }, [user?.role])
 
   const onLogout = async () => {
     await logout()
     navigate('/login', { replace: true })
   }
 
-  const onItemClick = (itemId: string) => {
-    const item = navigationItems.find((i) => i.id === itemId)
-    if (item?.href) navigate(item.href)
-    setNavOpen(false)
-  }
+  const renderNav = (items: NavItem[]) =>
+    items.map((item) => {
+      const active = current === item.id
+      return (
+        <Link
+          key={item.id}
+          to={item.href}
+          className={`${styles.navItem}${active ? ` ${styles.navItemActive}` : ''}`}
+          onClick={() => setNavOpen(false)}
+        >
+          <span className={styles.navLeft}>
+            <DidbanIcon name={item.icon} size={20} />
+            {item.label}
+          </span>
+          {item.badge ? (
+            <span className={styles.navBadge}>{item.badge}</span>
+          ) : null}
+        </Link>
+      )
+    })
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        minHeight: '100vh',
-        bgcolor: pageBg,
-      }}
-    >
-      <Navigation
-        open={navOpen}
-        onClose={() => setNavOpen(false)}
-        activeItem={activeId(location.pathname)}
-        onItemClick={onItemClick}
-        navigationItems={navigationItems}
-        linkComponent={RouterLink}
-        title="دیدبان"
-        headerSection={(collapsed) =>
-          collapsed ? null : (
-            <Box sx={{ px: 2, py: 1.5 }}>
-              <Typography variant="titleMedium" color="primary">
-                دیدبان
-              </Typography>
-              <Typography variant="bodySmall" color="text.secondary">
-                صدای مشتری
-              </Typography>
-            </Box>
-          )
-        }
-        showHelpCenterBanner={false}
-      />
-
-      <Box
-        component="main"
-        sx={{
-          flex: 1,
-          minWidth: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          px: { xs: 1.5, md: 3 },
-          py: { xs: 1.5, md: 2 },
-          gap: 2,
-        }}
-      >
-        <AppBar
-          leftSection={
-            <Box>
-              <Typography variant="headlineSmall" component="h1">
-                {title}
-              </Typography>
-              <Typography variant="bodySmall" color="text.secondary">
-                {subtitle}
-              </Typography>
-            </Box>
-          }
-          rightSection={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography
-                variant="labelMedium"
-                color="text.secondary"
-                sx={{ display: { xs: 'none', sm: 'block' } }}
-              >
-                {formatJalaliLong(todayJalali())}
-              </Typography>
-              {location.pathname.startsWith('/report') ? (
-                <Chip label="گزارش زنده" color="primary" size="small" />
-              ) : null}
-              <Chip
-                size="small"
-                variant="outlined"
-                label={roleLabel(user?.role)}
-                icon={<UserBulk size={16} color={iconColor} />}
-              />
-              <IconButton
-                aria-label="خروج"
-                onClick={() => void onLogout()}
-                buttonSize="small"
-                buttonVariant="text"
-              >
-                <LogoutBulk size={20} color={theme.palette.text.secondary} />
-              </IconButton>
-            </Box>
-          }
+    <div className={styles.shell}>
+      {navOpen ? (
+        <button
+          type="button"
+          className={styles.backdrop}
+          aria-label="بستن منو"
+          onClick={() => setNavOpen(false)}
         />
+      ) : null}
 
-        <Box
-          sx={{
-            flex: 1,
-            bgcolor: 'background.paper',
-            borderRadius: 3,
-            p: { xs: 2, md: 3 },
-            boxShadow: 1,
-            minHeight: 0,
-          }}
-        >
+      <main className={styles.main}>
+        <header className={styles.topbar}>
+          <div>
+            <span className={styles.crumbBrand}>دیدبان</span>
+            <span className={styles.crumbSep}>‹</span>
+            <span>{crumb}</span>
+          </div>
+          <div className={styles.topRight}>
+            <span className={styles.statusLive}>
+              <span className={styles.statusDot} />
+              سامانه فعال
+            </span>
+            <button
+              type="button"
+              className={styles.linkish}
+              onClick={() => navigate('/help')}
+            >
+              <DidbanIcon name="help" size={18} />
+              راهنمای این صفحه
+            </button>
+            <button
+              type="button"
+              className={styles.linkish}
+              onClick={() => void onLogout()}
+            >
+              خروج
+            </button>
+          </div>
+        </header>
+
+        <div className={styles.stage}>
           <Outlet />
-        </Box>
+        </div>
+      </main>
 
-        <Box
-          sx={{
-            display: { xs: 'flex', md: 'none' },
-            justifyContent: 'center',
-            pb: 1,
-          }}
-        >
-          <Button buttonVariant="tonal" onClick={() => setNavOpen(true)}>
-            منو
-          </Button>
-        </Box>
-      </Box>
-    </Box>
+      <aside
+        className={`${styles.sidebar}${navOpen ? ` ${styles.sidebarOpen}` : ''}`}
+      >
+        <div className={styles.brandRow}>
+          <div className={styles.brandMark}>
+            <DidbanIcon name="chart" size={22} />
+          </div>
+          <div>
+            <div className={styles.brandTitle}>دیدبان</div>
+            <div className={styles.brandSub}>صدای مشتری اسمارت</div>
+          </div>
+        </div>
+
+        <div className={styles.navSectionLabel}>منوی اصلی</div>
+        <nav className={styles.navList}>{renderNav(mainNav)}</nav>
+
+        {adminNav.length > 0 ? (
+          <>
+            <div className={styles.navSectionLabelSpaced}>مدیریت</div>
+            <nav className={styles.navList}>{renderNav(adminNav)}</nav>
+          </>
+        ) : null}
+
+        <div className={styles.userFoot}>
+          <div className={styles.avatar}>
+            {initials(user?.displayName || user?.username || '؟')}
+          </div>
+          <div>
+            <div className={styles.userName}>
+              {user?.displayName || user?.username || 'کاربر'}
+            </div>
+            <div className={styles.userRole}>{roleLabel(user?.role)}</div>
+          </div>
+        </div>
+      </aside>
+
+      <button
+        type="button"
+        className={styles.mobileMenuBtn}
+        onClick={() => setNavOpen(true)}
+      >
+        منو
+      </button>
+    </div>
   )
 }

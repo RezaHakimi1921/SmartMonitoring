@@ -1,0 +1,10 @@
+---
+description: Didban Figma UI is the source of truth for Monitoring appearance
+globs: Small Projects/Monitoring/**/*.{tsx,ts,css,md}
+alwaysApply: false
+---
+
+# Didban UI
+
+برای هر تغییر ظاهر در Monitoring، اسکیل `didban-ui` و `docs/DIDBAN_UI.md` را دنبال کن.
+Toast = `DidbanToast`. نام SQL در UI ممنوع. عنوان صفحه نباید بیرون بزند.

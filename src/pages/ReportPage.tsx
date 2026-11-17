@@ -1,28 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Link as RouterLink,
+  Link,
   useNavigate,
   useParams,
   useSearchParams,
 } from 'react-router-dom'
-import {
-  Box,
-  Button,
-  Card,
-  Chip,
-  Snackbar,
-  Stack,
-  Switch,
-  Typography,
-} from '@smartx/design-system'
 import { BrandSearch } from '../components/BrandSearch'
 import { ExportSheet } from '../components/ExportSheet'
 import { JalaliRangePicker } from '../components/JalaliRangePicker'
 import { ReportOptions } from '../components/ReportOptions'
-import { ScoreRing } from '../components/ScoreRing'
+import { ReportSummaryView } from '../components/ReportSummaryView'
 import { SectionSkeleton } from '../components/SectionSkeleton'
+import { DidbanToast } from '../components/DidbanToast'
 import { SendStep } from '../components/SendStep'
-import { ChevronLeft, FileText, Sparkles, TrendingUp } from 'lucide-react'
+import { Ico } from '../components/make/icons'
+import { FileText } from 'lucide-react'
+import rp from './ReportPage.module.css'
 import { DEFAULT_DIAG_IDS, DIAG_ITEMS } from '../data/diagCatalog'
 import {
   isRangeValid,
@@ -41,7 +34,6 @@ import {
 import {
   formatJalaliLong,
   serializeJalali,
-  parseFaNumber,
   toFaDigits,
   todayJalali,
 } from '../lib/jalali'
@@ -76,100 +68,6 @@ type LoadState =
   | { status: 'ready'; section: ReportSection }
   | { status: 'error'; message: string }
 
-/** همان N بخش از اول تا آخر؛ هر بخش که آماده شد جایش با دیتا پر می‌شود (تعداد عوض نمی‌شود). */
-function SummaryFeatureSlots({
-  featureIds,
-  catalog,
-  sectionState,
-}: {
-  featureIds: FeatureId[]
-  catalog: { id: FeatureId; title: string }[]
-  sectionState: Partial<Record<FeatureId, LoadState>>
-}) {
-  const readyN = featureIds.filter(
-    (id) => sectionState[id]?.status === 'ready',
-  ).length
-  return (
-    <div className="sum-group sum-pending">
-      <h4>
-        بخش‌های گزارش{' '}
-        <span className="chip">
-          {toFaDigits(readyN)}/{toFaDigits(featureIds.length)}
-        </span>
-      </h4>
-      <ul className="sum-slot-list">
-        {featureIds.map((id) => {
-          const title = featureTitle(id, catalog)
-          const st = sectionState[id]
-          if (st?.status === 'ready') {
-            const lines: string[] = []
-            for (const h of st.section.hints ?? []) {
-              if (
-                h.tone === 'bad' ||
-                h.tone === 'warn' ||
-                h.tone === 'ok' ||
-                h.tone === 'nodata'
-              ) {
-                lines.push(h.text)
-              }
-            }
-            for (const m of st.section.metrics) {
-              if (
-                m.tone === 'bad' ||
-                m.tone === 'warn' ||
-                m.tone === 'ok' ||
-                m.tone === 'nodata'
-              ) {
-                const v = (m.value || '').trim()
-                if (
-                  m.tone === 'ok' &&
-                  (v === '—' ||
-                    v === '۰' ||
-                    v === '۰.۰٪' ||
-                    v === '0' ||
-                    v === '0.0%')
-                ) {
-                  continue
-                }
-                lines.push(`${m.label}: ${m.value}`)
-              }
-            }
-            if (lines.length === 0) {
-              lines.push('بررسی شد — مورد خاصی برای نمایش نیست')
-            }
-            return (
-              <li key={id} className="sum-slot ready sum-slot-block">
-                <span className="sum-from">{title}</span>
-                <ul className="sum-slot-lines">
-                  {lines.map((text, idx) => (
-                    <li key={idx}>{text}</li>
-                  ))}
-                </ul>
-              </li>
-            )
-          }
-          if (st?.status === 'error') {
-            return (
-              <li key={id} className="sum-slot error">
-                <span className="sum-from">{title}</span>
-                {st.message}
-              </li>
-            )
-          }
-          return (
-            <li key={id} className="sum-slot loading" aria-busy="true">
-              <span className="sum-from">{title}</span>
-              <span className="sum-slot-skel">
-                <span className="skel skel-line value" />
-              </span>
-            </li>
-          )
-        })}
-      </ul>
-    </div>
-  )
-}
-
 function featureTitle(id: FeatureId, catalog: { id: FeatureId; title: string }[]) {
   return catalog.find((f) => f.id === id)?.title ?? id
 }
@@ -188,15 +86,13 @@ export function ReportPage() {
   const [note, setNote] = useState('')
   const [sentAt, setSentAt] = useState<string | undefined>()
   const [onlyAttention, setOnlyAttention] = useState(false)
-  const [filterTone, setFilterTone] = useState<'bad' | 'warn' | 'ok' | null>(
-    null,
-  )
   const [sectionState, setSectionState] = useState<
     Partial<Record<FeatureId, LoadState>>
   >({})
   const [diagLive, setDiagLive] = useState<DiagLiveItem[] | null>(null)
   const [diagLoading, setDiagLoading] = useState(false)
   const [diagError, setDiagError] = useState('')
+  const [diagDone, setDiagDone] = useState<Set<number>>(() => new Set())
 
   const type = loadReviewTypes().find((t) => t.id === typeId)
   const catalog = loadFeatures()
@@ -249,7 +145,6 @@ export function ReportPage() {
   const loadingCount = featureIds.filter(
     (id) => sectionState[id]?.status === 'loading' || !sectionState[id],
   ).length
-  const readyCount = sections.length
 
   const place =
     branchName && branchName !== brandName
@@ -324,7 +219,6 @@ export function ReportPage() {
       stepIndex: safeStep,
       stepTotal: steps.length,
       query: queryString,
-      action: sentAt ? 'sent' : 'stage',
     }).catch(() => {
       /* لاگ سرور اختیاری است؛ تاریخچه محلی باقی می‌ماند */
     })
@@ -631,7 +525,6 @@ export function ReportPage() {
         stepTotal: steps.length,
         query: queryString,
         note,
-        action: 'unsent',
       }).catch(() => undefined)
       flash('ثبت ارسال لغو شد')
     } else {
@@ -652,7 +545,6 @@ export function ReportPage() {
         stepTotal: steps.length,
         query: queryString,
         note,
-        action: 'sent',
       }).catch(() => undefined)
       flash('به‌عنوان ارسال‌شده ثبت شد')
     }
@@ -660,15 +552,58 @@ export function ReportPage() {
 
   if (!type) {
     return (
-      <Card elevation={1} title="این گزارش پیدا نشد. لطفاً از ابتدا شروع کنید.">
-        <Button component={RouterLink} to="/" buttonVariant="outlined">
+      <div className="panel">
+        <p>این گزارش پیدا نشد. لطفاً از ابتدا شروع کنید.</p>
+        <Link className="btn btn-secondary" to="/">
           بازگشت به صفحه اول
-        </Button>
-      </Card>
+        </Link>
+      </div>
     )
   }
 
   const customIncomplete = period === 'custom' && !isRangeValid(fromDate, toDate)
+
+  const sectionSteps = steps.filter((s) => s.key === 'section')
+  const sectionOrdinal =
+    current?.key === 'section'
+      ? sectionSteps.findIndex(
+          (s) => s.key === 'section' && s.featureId === current.featureId,
+        ) + 1
+      : 0
+
+  const tonePillClass = (tone: Tone) => {
+    if (tone === 'ok') return rp.toneOk
+    if (tone === 'warn') return rp.toneWarn
+    if (tone === 'bad') return rp.toneBad
+    if (tone === 'nodata') return rp.toneNodata
+    return rp.toneInfo
+  }
+
+  const metricCardClass = (tone?: Tone) => {
+    if (tone === 'ok') return rp.metricOk
+    if (tone === 'warn') return rp.metricWarn
+    if (tone === 'bad') return rp.metricBad
+    if (tone === 'nodata') return rp.metricNodata
+    return rp.metricInfo
+  }
+
+  const hintClass = (tone?: Tone) => {
+    if (tone === 'bad') return rp.hintBad
+    if (tone === 'warn') return rp.hintWarn
+    if (tone === 'ok') return rp.hintOk
+    return rp.hintItem
+  }
+
+  const sectionScoreOf = (section: ReportSection) => {
+    const weight = { ok: 88, warn: 68, bad: 42, nodata: 50, info: 70 } as const
+    const tones = section.metrics
+      .map((m) => (m.tone as Tone | undefined) ?? 'info')
+      .filter(Boolean)
+    if (!tones.length) return 0
+    return Math.round(
+      tones.reduce((a, t) => a + (weight[t] ?? 70), 0) / tones.length,
+    )
+  }
 
   const renderSectionBody = (featureId: FeatureId) => {
     const st = sectionState[featureId]
@@ -677,36 +612,54 @@ export function ReportPage() {
     }
     if (st.status === 'error') {
       return (
-        <div className="hint bad" style={{ marginTop: 8 }}>
+        <div className={rp.hintBad} style={{ marginTop: 8 }}>
           {st.message}
         </div>
       )
     }
     const section = st.section
+    const tone = sectionTone(section)
+    const score = sectionScoreOf(section)
+    const points = sectionTalkingPoints(section)
     return (
       <>
-        <div className="section-head">
-          <h3 style={{ margin: 0 }}>{section.title}</h3>
-          <span
-            className={`chip ${sectionTone(section) === 'info' ? '' : sectionTone(section)}`}
-          >
-            {TONE_TEXT[sectionTone(section)]}
-          </span>
+        <div className={rp.sectionTop}>
+          <div className={rp.panelIcon}>{Ico.chart}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 800 }}>
+              {section.title}
+            </h2>
+            <div className={rp.panelSub}>
+              بخش {toFaDigits(sectionOrdinal)} از{' '}
+              {toFaDigits(sectionSteps.length)}
+              {score > 0 ? ` · امتیاز ${toFaDigits(score)}` : ''}
+            </div>
+          </div>
+          <span className={tonePillClass(tone)}>{TONE_TEXT[tone]}</span>
         </div>
-        <div className="kpi-grid">
+
+        <div className={rp.metricGrid}>
           {section.metrics.map((m) => (
-            <div key={m.label} className="kpi">
-              <div className={`kpi-bar ${m.tone ?? 'info'}`} />
-              <div className="kpi-body">
-                <div className="kpi-label">{m.label}</div>
-                <div className="kpi-value">{m.value}</div>
-                {m.note ? <div className="kpi-note">{m.note}</div> : null}
+            <div key={m.label} className={metricCardClass(m.tone as Tone)}>
+              <div className={rp.metricLabel}>{m.label}</div>
+              <div className={rp.metricValue}>{m.value}</div>
+              <div className={rp.metricTone}>
+                {TONE_TEXT[(m.tone as Tone) || 'info']}
               </div>
+              {m.note &&
+              !/(Fact_|BI_|dbo\.|SmartPowerBI|SmartProjectDW|SmartBi|MinFacture|HowManydays|V_BI_)/i.test(
+                m.note,
+              ) ? (
+                <div className={rp.diagNote} style={{ marginTop: 6 }}>
+                  {m.note}
+                </div>
+              ) : null}
             </div>
           ))}
         </div>
-        {section.rows ? (
-          <table className="table" style={{ marginTop: 12 }}>
+
+        {section.rows?.length ? (
+          <table className={rp.rowsTable}>
             <thead>
               <tr>
                 <th>مورد</th>
@@ -723,484 +676,391 @@ export function ReportPage() {
             </tbody>
           </table>
         ) : null}
-        {(() => {
-          const points = sectionTalkingPoints(section)
-          return points.length > 0 ? (
-            <div className="talk-box">
-              <h4>نکته برای گفتن به مشتری</h4>
-              <ul>
-                {points.map((p, i) => (
-                  <li key={i}>{p.text}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null
-        })()}
+
+        {points.length > 0 ? (
+          <ul className={rp.hintList}>
+            {points.map((p, i) => {
+              const hintTone =
+                section.hints?.find((h) => h.text === p.text)?.tone ??
+                (p.text.includes('—') ? 'nodata' : 'warn')
+              return (
+                <li key={i} className={hintClass(hintTone as Tone)}>
+                  {p.text}
+                </li>
+              )
+            })}
+          </ul>
+        ) : null}
       </>
     )
   }
 
-  const ringFrom = (featureId: FeatureId, labelPart: string) => {
-    const st = sectionState[featureId]
-    if (st?.status !== 'ready') return null
-    const m = st.section.metrics.find((x) => x.label.includes(labelPart))
-    if (!m) return null
-    const n = parseFaNumber(m.value)
-    const isPercent = /[٪%]/.test(String(m.value))
-    // درصد همان progress؛ تعداد مطلق را نسبت به سقف معقول نرمال کن
-    const progress = !Number.isFinite(n)
-      ? 0
-      : isPercent
-        ? Math.max(0, Math.min(100, n))
-        : Math.max(0, Math.min(100, (Math.log10(n + 1) / Math.log10(10000)) * 100))
-    return { value: m.value, progress, raw: n, isPercent }
+  const checklistItems = DIAG_ITEMS.filter((d) => diagIds.includes(d.id))
+
+  const toggleDiagDone = (id: number) => {
+    setDiagDone((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   }
-  const subRing = ringFrom('subscription', 'اشتراک')
-  const engRing = ringFrom('survey', 'نرخ')
-  const custRing = ringFrom('balance', 'یک سال')
-  const topHint =
-    summary.bad[0]?.text ||
-    summary.warn[0]?.text ||
-    'بخش‌های گزارش را یکی‌یکی مرور کنید و موارد مهم را برای پیگیری علامت بزنید.'
+
+  const renderDiagBody = () => {
+    const doneCount = checklistItems.filter((d) => diagDone.has(d.id)).length
+    return (
+      <>
+        <div className={rp.panelHead}>
+          <div className={rp.panelIcon}>{Ico.list}</div>
+          <div>
+            <h2>نکات پیگیری</h2>
+            <div className={rp.panelSub}>
+              {toFaDigits(doneCount)} از {toFaDigits(checklistItems.length)}{' '}
+              انجام شده
+            </div>
+          </div>
+        </div>
+
+        {checklistItems.length === 0 ? (
+          <div className={rp.hintOk}>هیچ نکتهٔ پیگیری‌ای انتخاب نشده است.</div>
+        ) : (
+          <div className={rp.diagList}>
+            {checklistItems.map((d) => {
+              const live = diagLive?.find((x) => x.id === d.id)
+              const done = diagDone.has(d.id)
+              return (
+                <label
+                  key={d.id}
+                  className={done ? rp.diagRowDone : rp.diagRow}
+                >
+                  <input
+                    type="checkbox"
+                    checked={done}
+                    onChange={() => toggleDiagDone(d.id)}
+                  />
+                  <div>
+                    <div className={rp.diagTitle}>{d.title}</div>
+                    <div className={rp.diagNote}>
+                      {live?.value || d.hint}
+                    </div>
+                  </div>
+                </label>
+              )
+            })}
+          </div>
+        )}
+
+        {diagLoading ? (
+          <div className={rp.diagLive}>
+            <SectionSkeleton cards={2} />
+          </div>
+        ) : null}
+
+        {!diagLoading && diagError ? (
+          <div className={rp.hintBad} style={{ marginTop: 12 }}>
+            {diagError}
+          </div>
+        ) : null}
+
+        {!diagLoading && diagLive && diagLive.length > 0 ? (
+          <div className={rp.diagLive}>
+            <div className={rp.diagLiveTitle}>وضعیت زنده تشخیصی</div>
+            <div className={rp.diagList}>
+              {diagLive.map((d) => (
+                <div key={`live-${d.id}`} className={rp.diagRow}>
+                  <div>
+                    <div className={rp.diagTitle}>{d.title}</div>
+                    <div className={rp.diagNote}>{d.value}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </>
+    )
+  }
+
+  const journeyStage: 'summary' | 'section' | 'diag' | 'send' =
+    current.key === 'section' ? 'section' : current.key
+
+  const goJourney = (stage: 'summary' | 'section' | 'diag' | 'send') => {
+    const idx = steps.findIndex((s) =>
+      stage === 'section' ? s.key === 'section' : s.key === stage,
+    )
+    if (idx >= 0) setStep(idx)
+  }
+
+  const stageOrder = ['summary', 'section', 'diag', 'send'] as const
+  const stageIndex = stageOrder.indexOf(journeyStage)
+
+  const primaryLabel =
+    journeyStage === 'summary'
+      ? 'ادامه بررسی'
+      : journeyStage === 'section'
+        ? safeStep < steps.length - 1 && steps[safeStep + 1]?.key === 'section'
+          ? 'بخش بعدی'
+          : 'نکات پیگیری'
+        : journeyStage === 'diag'
+          ? 'رفتن به ارسال'
+          : sentAt
+            ? 'رفتن به صندوق گزارش'
+            : 'ثبت ارسال'
+
+  const goPrimary = () => {
+    if (journeyStage === 'send') {
+      if (sentAt) navigate('/reports')
+      else toggleSent()
+      return
+    }
+    if (safeStep < steps.length - 1) setStep(safeStep + 1)
+  }
 
   return (
-    <Stack spacing={2} className="flow report-flow" ref={topRef}>
-      <Card
-        elevation={1}
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 2,
-          flexWrap: 'wrap',
-          p: 1,
-        }}
-      >
-        <Box>
-          <Typography variant="labelMedium" color="primary">
-            {type.title}
-          </Typography>
-          <Typography variant="titleMedium">
-            {place} · {rangeText}
-          </Typography>
-        </Box>
-        <Stack direction="row" spacing={1} flexWrap="wrap">
-          <Button
-            buttonVariant="outlined"
-            buttonSize="small"
+    <div className={rp.page} ref={topRef}>
+      <div className={rp.head}>
+        <div className={rp.headCopy}>
+          <h1>{place}</h1>
+          <p>
+            گزارش زنده · {type.title} · {rangeText}
+          </p>
+        </div>
+        <div className={rp.headActions}>
+          <button
+            type="button"
+            className={rp.btnGhost}
             aria-expanded={editing}
             onClick={() => setEditing((v) => !v)}
           >
-            {editing ? 'بستن تنظیمات' : 'تغییر مجموعه یا بازه'}
-          </Button>
-          <Button
-            buttonVariant="filled"
-            buttonSize="small"
+            {editing ? 'بستن' : 'بروزرسانی'}
+          </button>
+          <button
+            type="button"
+            className={rp.btnGhost}
             disabled={busy || customIncomplete || loadingCount > 0}
-            loading={busy}
-            startIcon={<FileText size={18} />}
             onClick={() => void downloadPdf()}
           >
-            دانلود PDF
-          </Button>
-        </Stack>
-      </Card>
+            <FileText size={16} />
+            {busy ? 'در حال ساخت…' : 'خروجی PDF'}
+          </button>
+        </div>
+      </div>
 
       {editing ? (
-        <Card elevation={1} sx={{ p: 1, overflow: 'visible' }}>
-          <Stack spacing={2.5}>
-            <BrandSearch value={brandDraft} onChange={changeBrand} />
+        <section className={rp.editPanel}>
+          <BrandSearch value={brandDraft} onChange={changeBrand} />
 
-            <Box>
-              <Typography
-                variant="labelMedium"
-                color="text.secondary"
-                sx={{ mb: 1, display: 'block' }}
-              >
-                بازه زمانی (تاریخ‌ها شمسی هستند)
-              </Typography>
-              <Stack direction="row" flexWrap="wrap" gap={1}>
-                {PERIOD_OPTIONS.map((p) => (
-                  <Chip
-                    key={p.id}
-                    label={p.label}
-                    clickable
-                    color={period === p.id ? 'primary' : 'default'}
-                    variant={period === p.id ? 'filled' : 'outlined'}
-                    onClick={() => changePeriod(p.id)}
-                    aria-pressed={period === p.id}
-                  />
-                ))}
-              </Stack>
-              {period === 'custom' ? (
-                <Box sx={{ mt: 1.5 }}>
-                  <JalaliRangePicker
-                    from={fromDate}
-                    to={toDate}
-                    onChange={changeRange}
-                  />
-                  {customIncomplete ? (
-                    <Typography
-                      variant="bodySmall"
-                      color="error"
-                      sx={{ mt: 1, display: 'block' }}
-                    >
-                      تاریخ شروع و پایان را کامل انتخاب کنید.
-                    </Typography>
-                  ) : null}
-                </Box>
-              ) : null}
-            </Box>
-
-            <Box>
-              <Stack
-                direction="row"
-                alignItems="center"
-                justifyContent="space-between"
-                flexWrap="wrap"
-                gap={1}
-              >
-                <Typography variant="bodyMedium">
-                  <strong>{toFaDigits(featureIds.length)} بخش</strong> و{' '}
-                  <strong>{toFaDigits(diagIds.length)} نکته پیگیری</strong> در
-                  گزارش است.
-                </Typography>
-                <Button
-                  buttonVariant="outlined"
-                  buttonSize="small"
-                  aria-expanded={showOptions}
-                  onClick={() => setShowOptions((v) => !v)}
+          <div style={{ marginTop: 12 }}>
+            <div className="field-label">بازه زمانی (تاریخ‌ها شمسی هستند)</div>
+            <div className="period-row">
+              {PERIOD_OPTIONS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`period-chip${period === p.id ? ' active' : ''}`}
+                  aria-pressed={period === p.id}
+                  onClick={() => changePeriod(p.id)}
                 >
-                  {showOptions ? 'بستن فهرست' : 'انتخاب بخش‌ها'}
-                </Button>
-              </Stack>
-              {showOptions ? (
-                <Box sx={{ mt: 1.5 }}>
-                  <ReportOptions
-                    features={catalog}
-                    checked={new Set(featureIds)}
-                    required={requiredSet}
-                    diag={diagIds}
-                    onToggleFeature={toggleFeature}
-                    onSetCategory={setCategory}
-                    onToggleDiag={toggleDiag}
-                    onSetDiag={setDiag}
-                    onReset={() => {
-                      const defaults = Object.entries(type.features)
-                        .filter(
-                          ([, m]) => m === 'required' || m === 'defaultOn',
-                        )
-                        .map(([id]) => id as FeatureId)
-                      setFeatures(defaults)
-                      setDiag(DEFAULT_DIAG_IDS)
-                    }}
-                  />
-                </Box>
-              ) : null}
-            </Box>
-          </Stack>
-        </Card>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            {period === 'custom' ? (
+              <div style={{ marginTop: 12 }}>
+                <JalaliRangePicker
+                  from={fromDate}
+                  to={toDate}
+                  onChange={changeRange}
+                />
+                {customIncomplete ? (
+                  <p className="flow-reason" style={{ textAlign: 'start' }}>
+                    تاریخ شروع و پایان را کامل انتخاب کنید.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          <div style={{ marginTop: 12 }}>
+            <button
+              type="button"
+              className={rp.btnGhost}
+              aria-expanded={showOptions}
+              onClick={() => setShowOptions((v) => !v)}
+            >
+              {showOptions ? 'بستن فهرست بخش‌ها' : 'انتخاب بخش‌ها'}
+            </button>
+            {showOptions ? (
+              <div style={{ marginTop: 12 }}>
+                <ReportOptions
+                  features={catalog}
+                  checked={new Set(featureIds)}
+                  required={requiredSet}
+                  diag={diagIds}
+                  onToggleFeature={toggleFeature}
+                  onSetCategory={setCategory}
+                  onToggleDiag={toggleDiag}
+                  onSetDiag={setDiag}
+                  onReset={() => {
+                    const defaults = Object.entries(type.features)
+                      .filter(([, m]) => m === 'required' || m === 'defaultOn')
+                      .map(([id]) => id as FeatureId)
+                    setFeatures(defaults)
+                    setDiag(DEFAULT_DIAG_IDS)
+                  }}
+                />
+              </div>
+            ) : null}
+          </div>
+        </section>
       ) : null}
 
-      <Stack
-        direction="row"
-        flexWrap="wrap"
-        gap={1}
-        role="tablist"
-        aria-label="مراحل گزارش"
-      >
-        {steps.map((s, i) => {
-          const selected = i === safeStep
-          const tone =
-            s.key === 'section'
-              ? s.tone === 'bad'
-                ? 'error'
-                : s.tone === 'warn'
-                  ? 'warning'
-                  : s.tone === 'ok'
-                    ? 'success'
-                    : 'primary'
-              : 'primary'
+      <div className={rp.stages} role="tablist" aria-label="مراحل گزارش">
+        {(
+          [
+            ['summary', 'خلاصه گزارش', 1],
+            ['section', 'بررسی بخش‌ها', 2],
+            ['diag', 'نکات پیگیری', 3],
+            ['send', 'ارسال گزارش', 4],
+          ] as const
+        ).map(([id, label, n]) => {
+          const idx = stageOrder.indexOf(id)
+          const on = journeyStage === id
+          const done = idx < stageIndex
+          const available =
+            id === 'summary' ||
+            (id === 'section' && steps.some((s) => s.key === 'section')) ||
+            (id === 'diag' && steps.some((s) => s.key === 'diag')) ||
+            id === 'send'
           return (
-            <Chip
-              key={`${s.key}-${i}`}
-              label={s.title}
-              clickable
+            <button
+              key={id}
+              type="button"
               role="tab"
-              aria-selected={selected}
-              color={selected ? (tone as 'primary') : 'default'}
-              variant={selected ? 'filled' : 'outlined'}
-              onClick={() => setStep(i)}
-            />
+              disabled={!available}
+              aria-selected={on}
+              className={
+                on ? rp.stageOn : done ? rp.stageDone : rp.stage
+              }
+              onClick={() => goJourney(id)}
+            >
+              <span className={rp.stageNum}>
+                {done && !on ? Ico.check : toFaDigits(n)}
+              </span>
+              {label}
+            </button>
           )
         })}
-      </Stack>
+      </div>
 
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        flexWrap="wrap"
-        gap={1}
-      >
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <Switch
-            checked={onlyAttention}
-            onChange={(_, checked) => {
-              setOnlyAttention(checked)
-              setStep(0)
-            }}
-            inputProps={{ 'aria-label': 'فقط بخش‌های نیازمند توجه' }}
-          />
-          <Typography variant="bodyMedium">
-            فقط بخش‌های نیازمند توجه
-          </Typography>
-        </Stack>
-        <Typography variant="bodySmall" color="text.secondary">
-          مرحله {toFaDigits(safeStep + 1)} از {toFaDigits(steps.length)}
-        </Typography>
-      </Stack>
+      {journeyStage === 'section' ? (
+        <div className={rp.sectionNav}>
+          <label className={rp.sectionChip} style={{ cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={onlyAttention}
+              onChange={(e) => {
+                setOnlyAttention(e.target.checked)
+                setStep(0)
+              }}
+              style={{ marginLeft: 6 }}
+            />
+            فقط نیازمند توجه
+          </label>
+          {steps.map((s, i) =>
+            s.key === 'section' ? (
+              <button
+                key={`${s.featureId}-${i}`}
+                type="button"
+                className={i === safeStep ? rp.sectionChipOn : rp.sectionChip}
+                onClick={() => setStep(i)}
+              >
+                {s.title}
+              </button>
+            ) : null,
+          )}
+        </div>
+      ) : null}
 
-      <section className="section-block journey-body">
-        {current.key === 'summary' ? (
-          <section className="overview-card">
-            <div className="section-heading">
-              <div>
-                <span className="eyebrow">
-                  <Sparkles size={16} />
-                  خلاصه هوشمند
-                </span>
-                <h2>خلاصه برای شروع صحبت با مشتری</h2>
-                <p>
-                  اول از این خلاصه شروع کنید؛ سپس بخش‌ها را یکی‌یکی مرور کنید.
-                  {loadingCount > 0
-                    ? ` هنوز ${toFaDigits(loadingCount)} بخش در حال بارگذاری است.`
-                    : ''}
-                </p>
-              </div>
-              <div className="updated-at">تاریخ گزارش: {reportDate}</div>
-            </div>
-
-            {featureIds.length === 0 ? (
-              <p className="muted">هیچ بخشی برای گزارش انتخاب نشده است.</p>
-            ) : (
-              <>
-                <div className="summary-grid" aria-busy={loadingCount > 0}>
-                  {(
-                    [
-                      ['bad', 'danger', 'نیاز به اقدام', summary.bad.length],
-                      ['warn', 'warning', 'قابل بهبود', summary.warn.length],
-                      ['ok', 'success', 'وضعیت خوب', summary.ok.length],
-                    ] as const
-                  ).map(([tone, card, label, count]) => (
-                    <button
-                      key={tone}
-                      type="button"
-                      className={`summary-card ${card}${filterTone === tone ? ' is-active' : ''}`}
-                      disabled={loadingCount > 0}
-                      aria-pressed={filterTone === tone}
-                      onClick={() =>
-                        setFilterTone((cur) => (cur === tone ? null : tone))
-                      }
-                      style={{ cursor: 'pointer', width: '100%', textAlign: 'right' }}
-                    >
-                      <div className="summary-icon">
-                        {tone === 'ok' ? (
-                          <Sparkles size={19} />
-                        ) : tone === 'warn' ? (
-                          <TrendingUp size={19} />
-                        ) : (
-                          <FileText size={19} />
-                        )}
-                      </div>
-                      <div>
-                        <strong>
-                          {loadingCount > 0 ? '…' : toFaDigits(count)}
-                        </strong>
-                        <span>{label}</span>
-                      </div>
-                      <small>کلیک برای جزئیات</small>
-                    </button>
-                  ))}
-                </div>
-
-                {filterTone ? (
-                  <ul className="sum-filter-list">
-                    {(summary[filterTone] ?? []).length === 0 ? (
-                      <li className="muted">موردی در این وضعیت نیست.</li>
-                    ) : (
-                      summary[filterTone].map((item) => (
-                        <li key={`${item.section}-${item.text}`}>
-                          <strong>{item.section}</strong>
-                          <div>{item.text}</div>
-                          <button
-                            type="button"
-                            className="btn btn-ghost"
-                            style={{ marginTop: 6 }}
-                            onClick={() => {
-                              const idx = steps.findIndex(
-                                (s) =>
-                                  s.key === 'section' &&
-                                  s.title === item.section,
-                              )
-                              if (idx >= 0) setStep(idx)
-                            }}
-                          >
-                            برو به بخش
-                            <ChevronLeft size={14} />
-                          </button>
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                ) : null}
-
-                <div className="insight-grid">
-                  <div className="scores-panel">
-                    <div className="panel-title">
-                      <div>
-                        <h3>شاخص‌های کلیدی</h3>
-                        <p>از دادهٔ زنده SmartBi در همین بازه</p>
-                      </div>
-                      <span className="positive-badge">
-                        {toFaDigits(readyCount)}/{toFaDigits(featureIds.length)} آماده
-                      </span>
-                    </div>
-                    <div className="rings">
-                      <ScoreRing
-                        progress={subRing?.progress ?? 0}
-                        displayValue={subRing?.value ?? '—'}
-                        label="اشتراک‌گیری"
-                        color="var(--success, #16a34a)"
-                      />
-                      <ScoreRing
-                        progress={engRing?.progress ?? 0}
-                        displayValue={engRing?.value ?? '—'}
-                        label="مشارکت"
-                        color="var(--primary, #1e40af)"
-                      />
-                      <ScoreRing
-                        progress={custRing?.progress ?? 0}
-                        displayValue={custRing?.value ?? '—'}
-                        label="مشتریان"
-                        color="var(--secondary, #3b82f6)"
-                      />
-                    </div>
-                  </div>
-                  <div className="recommendation">
-                    <span className="recommendation-icon">
-                      <Sparkles size={20} />
-                    </span>
-                    <div>
-                      <span>پیشنهاد شروع صحبت</span>
-                      <h3>
-                        {summary.bad.length > 0
-                          ? 'اول موارد نیازمند اقدام را مطرح کنید'
-                          : summary.warn.length > 0
-                            ? 'روی نقاط قابل بهبود تمرکز کنید'
-                            : 'نقاط قوت را برجسته کنید'}
-                      </h3>
-                      <p>{topHint}</p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const idx = steps.findIndex((s) => s.key === 'section')
-                          if (idx >= 0) setStep(idx)
-                        }}
-                      >
-                        شروع مرور بخش‌ها
-                        <ChevronLeft size={16} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="reports-section" style={{ marginTop: 15, padding: 0, border: 0, boxShadow: 'none', background: 'transparent' }}>
-                  <div className="reports-title">
-                    <div>
-                      <h2>بخش‌های گزارش</h2>
-                      <p>وضعیت هر بخش بعد از بارگذاری داده مشخص می‌شود.</p>
-                    </div>
-                    <span>
-                      {toFaDigits(readyCount)} از {toFaDigits(featureIds.length)}
-                    </span>
-                  </div>
-                  <SummaryFeatureSlots
-                    featureIds={featureIds}
-                    catalog={catalog}
-                    sectionState={sectionState}
-                  />
-                </div>
-              </>
-            )}
+      {current.key === 'summary' ? (
+        featureIds.length === 0 ? (
+          <section className={rp.panel}>
+            <p className={rp.panelSub}>هیچ بخشی برای گزارش انتخاب نشده است.</p>
           </section>
-        ) : null}
-
-        {current.key === 'section'
-          ? renderSectionBody(current.featureId)
-          : null}
-
-        {current.key === 'diag' ? (
-          <>
-            <h3 style={{ margin: '0 0 4px' }}>نکات قابل پیگیری</h3>
-            <p className="muted" style={{ margin: '0 0 12px' }}>
-              موارد فعال تشخیصی مجموعه در همین لحظه.
-            </p>
-            {diagLoading ? (
-              <SectionSkeleton cards={2} />
-            ) : diagError ? (
-              <div className="hint bad">{diagError}</div>
-            ) : diagLive && diagLive.length > 0 ? (
-              <ul className="diag-live-list">
-                {diagLive.map((d) => (
-                  <li key={d.id}>
-                    <strong>{d.title}</strong>
-                    <span>{d.value}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="hint ok">
-                برای نکات انتخاب‌شده مورد فعالی پیدا نشد.
-              </div>
-            )}
-          </>
-        ) : null}
-
-        {current.key === 'send' ? (
-          <SendStep
-            customerMessage={message}
-            assistantForm={assistantForm}
-            note={note}
-            onNote={changeNote}
-            sentAt={sentAt}
-            onToggleSent={toggleSent}
-            busy={busy}
-            pdfDisabled={customIncomplete || loadingCount > 0}
-            onDownload={() => void downloadPdf()}
-            onFlash={flash}
+        ) : (
+          <ReportSummaryView
+            sections={sections}
+            summary={summary}
+            loadingCount={loadingCount}
+            onFollowUps={() => goJourney('diag')}
           />
-        ) : null}
-      </section>
+        )
+      ) : (
+        <section className={rp.panel}>
+          {current.key === 'section'
+            ? renderSectionBody(current.featureId)
+            : null}
+          {current.key === 'diag' ? renderDiagBody() : null}
+          {current.key === 'send' ? (
+            <SendStep
+              customerMessage={message}
+              assistantForm={assistantForm}
+              note={note}
+              onNote={changeNote}
+              sentAt={sentAt}
+              onToggleSent={toggleSent}
+              busy={busy}
+              pdfDisabled={customIncomplete || loadingCount > 0}
+              onDownload={() => void downloadPdf()}
+              onFlash={flash}
+            />
+          ) : null}
+        </section>
+      )}
 
-      <Stack direction="row" justifyContent="space-between" gap={1}>
-        <Button
-          buttonVariant="outlined"
-          disabled={safeStep === 0}
-          onClick={() => setStep(safeStep - 1)}
-        >
-          → قبلی
-        </Button>
-        <Button
-          buttonVariant="filled"
-          disabled={safeStep >= steps.length - 1}
-          onClick={() => setStep(safeStep + 1)}
-        >
-          بعدی ←
-        </Button>
-      </Stack>
+      <footer className={rp.footer}>
+        <div className={rp.footerHint}>
+          {journeyStage === 'section' && sectionOrdinal > 0 ? (
+            <>
+              <span className={rp.panelIcon} style={{ width: 28, height: 28 }}>
+                {Ico.chart}
+              </span>
+              بخش {toFaDigits(sectionOrdinal)} از{' '}
+              {toFaDigits(sectionSteps.length)}
+              {current.key === 'section'
+                ? ` · ${featureTitle(current.featureId, catalog)}`
+                : ''}
+            </>
+          ) : (
+            <>
+              <span style={{ color: '#668100' }}>{Ico.check}</span>
+              تغییرات به‌صورت خودکار ذخیره می‌شود
+            </>
+          )}
+        </div>
+        <div className={rp.footerActions}>
+          <button
+            type="button"
+            className={rp.btnGhost}
+            onClick={() => {
+              if (safeStep === 0) navigate('/')
+              else setStep(safeStep - 1)
+            }}
+          >
+            {safeStep === 0 ? 'بازگشت به ویزارد' : 'مرحله قبل'}
+          </button>
+          <button
+            type="button"
+            className={rp.btnPrimary}
+            onClick={goPrimary}
+          >
+            {Ico.arrow}
+            {primaryLabel}
+          </button>
+        </div>
+      </footer>
 
-      <Box className="export-host" aria-hidden="true">
+      <div className="export-host" aria-hidden="true">
         <div ref={exportRef}>
           <ExportSheet
             typeTitle={type.title}
@@ -1212,24 +1072,9 @@ export function ReportPage() {
             summary={summary}
           />
         </div>
-      </Box>
+      </div>
 
-      <Box
-        sx={{
-          position: 'fixed',
-          bottom: 24,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 1400,
-        }}
-      >
-        <Snackbar
-          open={!!toast}
-          message={toast}
-          severity="success"
-          onClose={() => setToast('')}
-        />
-      </Box>
-    </Stack>
+      <DidbanToast message={toast} />
+    </div>
   )
 }

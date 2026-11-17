@@ -13,13 +13,12 @@ import {
   Card,
   Chip,
   Select,
-  Snackbar,
   Stack,
-  Switch,
   TextField,
   Typography,
 } from '@smartx/design-system'
 import { BrandSearch } from '../components/BrandSearch'
+import { DidbanToast } from '../components/DidbanToast'
 import { FeedbackImageModal } from '../components/FeedbackImageModal'
 import type { BrandBranch } from '../data/types'
 import {
@@ -273,8 +272,12 @@ export function FeedbackDetailPage() {
     return (
       <Stack spacing={2}>
         <Typography color="error">{error || 'مورد پیدا نشد'}</Typography>
-        <Button component={RouterLink} to="/feedback" buttonVariant="outlined">
-          بازگشت به لیست
+        <Button
+          component={RouterLink}
+          to={id ? `/feedback/${id}` : '/feedback'}
+          buttonVariant="outlined"
+        >
+          بازگشت به صندوق
         </Button>
       </Stack>
     )
@@ -294,11 +297,11 @@ export function FeedbackDetailPage() {
       >
         <Button
           component={RouterLink}
-          to="/feedback"
+          to={id ? `/feedback/${id}` : '/feedback'}
           buttonVariant="text"
           buttonSize="small"
         >
-          → همه درخواست‌ها
+          → بازگشت به صندوق
         </Button>
         {canEdit && !editing ? (
           <Button buttonVariant="outlined" buttonSize="small" onClick={() => setEditing(true)}>
@@ -413,10 +416,12 @@ export function FeedbackDetailPage() {
                 multiline
                 minRows={5}
               />
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <Switch
+              <Stack direction="row" alignItems="center" spacing={1} component="label">
+                <input
+                  type="checkbox"
                   checked={needBrand}
-                  onChange={(_, c) => {
+                  onChange={(e) => {
+                    const c = e.target.checked
                     setNeedBrand(c)
                     if (!c) setBrand(null)
                   }}
@@ -622,11 +627,13 @@ export function FeedbackDetailPage() {
               alignItems="center"
               gap={1}
               sx={{ mt: 1 }}
+              component="label"
             >
-              <Switch
+              <input
+                type="checkbox"
                 checked={adminOnlyComment}
-                onChange={(_, v) => setAdminOnlyComment(!!v)}
-                inputProps={{ 'aria-label': 'کامنت فقط ادمین' }}
+                onChange={(e) => setAdminOnlyComment(e.target.checked)}
+                aria-label="کامنت فقط ادمین"
               />
               <Typography variant="bodySmall" color="text.secondary">
                 فقط ادمین ببیند (تگ ادمین)
@@ -657,22 +664,7 @@ export function FeedbackDetailPage() {
         title={`پیوست ${feedbackKey(item.id)}`}
       />
 
-      <Box
-        sx={{
-          position: 'fixed',
-          bottom: 24,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 1400,
-        }}
-      >
-        <Snackbar
-          open={!!toast}
-          message={toast}
-          severity="success"
-          onClose={() => setToast('')}
-        />
-      </Box>
+      <DidbanToast message={toast} />
     </Stack>
   )
 }

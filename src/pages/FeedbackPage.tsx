@@ -1,260 +1,321 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link as RouterLink } from 'react-router-dom'
 import {
-  Box,
-  Button,
-  Card,
-  Chip,
-  Select,
-  Stack,
-  Switch,
-  Typography,
-} from '@smartx/design-system'
-import { useAuth } from '../lib/authContext'
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { DidbanIcon } from '../components/didbanIcons'
+import { isStaff, useAuth } from '../lib/authContext'
 import {
-  fetchFeedback,
   feedbackKey,
+  fetchFeedback,
+  fetchFeedbackItem,
   kindLabelFa,
+  patchFeedbackStatus,
+  postFeedbackComment,
   statusLabelFa,
   type FeedbackItem,
   type FeedbackKind,
   type FeedbackStatus,
 } from '../lib/feedbackApi'
-import { faWhen, kindColor, statusColor, truncateText } from '../lib/feedbackUi'
+import { faWhen } from '../lib/feedbackUi'
+import styles from './FeedbackInbox.module.css'
+
+type FilterTab = 'all' | 'bug' | 'idea'
+
+function isIdea(kind: FeedbackKind) {
+  return kind === 'improvement' || kind === 'change'
+}
 
 export function FeedbackPage() {
+  const { id: routeId } = useParams()
+  const navigate = useNavigate()
   const { user } = useAuth()
+  const staff = isStaff(user?.role)
+
   const [items, setItems] = useState<FeedbackItem[]>([])
+  const [active, setActive] = useState<FeedbackItem | null>(null)
+  const [filter, setFilter] = useState<FilterTab>('all')
   const [loading, setLoading] = useState(true)
+  const [detailLoading, setDetailLoading] = useState(false)
   const [error, setError] = useState('')
-  const [filterKind, setFilterKind] = useState('all')
-  const [filterStatus, setFilterStatus] = useState('open')
-  const [mineOnly, setMineOnly] = useState(false)
-  const [kindOpen, setKindOpen] = useState(false)
-  const [statusOpen, setStatusOpen] = useState(false)
+  const [comment, setComment] = useState('')
+  const [commentBusy, setCommentBusy] = useState(false)
+  const [statusBusy, setStatusBusy] = useState(false)
 
-  const kindOptions = useMemo(
-    () => [
-      { id: 'bug', label: 'باگ' },
-      { id: 'improvement', label: 'بهبود' },
-      { id: 'change', label: 'تغییر' },
-    ],
-    [],
-  )
-
-  const statusOptions = useMemo(
-    () => [
-      { id: 'all', label: 'همه وضعیت‌ها' },
-      { id: 'open', label: 'باز' },
-      { id: 'in_progress', label: 'در حال بررسی' },
-      { id: 'done', label: 'انجام شد' },
-      { id: 'wontfix', label: 'انصراف' },
-    ],
-    [],
-  )
-
-  const reload = useCallback(async () => {
+  const reloadList = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const list = await fetchFeedback({
-        kind: filterKind === 'all' ? undefined : (filterKind as FeedbackKind),
-        status:
-          filterStatus === 'all'
-            ? undefined
-            : (filterStatus as FeedbackStatus),
-        mine: mineOnly,
-      })
+      const list = await fetchFeedback({})
       setItems(list)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'خطا')
     } finally {
       setLoading(false)
     }
-  }, [filterKind, filterStatus, mineOnly])
+  }, [])
 
   useEffect(() => {
-    void reload()
-  }, [reload])
+    void reloadList()
+  }, [reloadList])
+
+  const filtered = useMemo(() => {
+    if (filter === 'bug') return items.filter((i) => i.kind === 'bug')
+    if (filter === 'idea') return items.filter((i) => isIdea(i.kind))
+    return items
+  }, [items, filter])
+
+  const selectId = routeId || filtered[0]?.id || items[0]?.id
+
+  useEffect(() => {
+    if (!selectId) {
+      setActive(null)
+      return
+    }
+    let cancelled = false
+    setDetailLoading(true)
+    void fetchFeedbackItem(selectId)
+      .then((it) => {
+        if (!cancelled) setActive(it)
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setActive(null)
+          setError(e instanceof Error ? e.message : 'خطا در جزئیات')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setDetailLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [selectId])
+
+  const onSelect = (id: string) => {
+    navigate(`/feedback/${id}`, { replace: !routeId })
+  }
+
+  const onComment = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!active || !comment.trim() || commentBusy) return
+    setCommentBusy(true)
+    try {
+      const next = await postFeedbackComment(active.id, comment.trim())
+      setActive(next)
+      setComment('')
+      setItems((prev) =>
+        prev.map((it) => (it.id === next.id ? { ...it, ...next } : it)),
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ارسال کامنت ناموفق')
+    } finally {
+      setCommentBusy(false)
+    }
+  }
+
+  const onStatus = async (status: FeedbackStatus) => {
+    if (!active || !staff || statusBusy || active.status === status) return
+    setStatusBusy(true)
+    try {
+      const next = await patchFeedbackStatus(active.id, status)
+      setActive(next)
+      setItems((prev) =>
+        prev.map((it) => (it.id === next.id ? { ...it, ...next } : it)),
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'تغییر وضعیت ناموفق')
+    } finally {
+      setStatusBusy(false)
+    }
+  }
+
+  const statusOptions: FeedbackStatus[] = [
+    'open',
+    'in_progress',
+    'done',
+    'wontfix',
+  ]
 
   return (
-    <Stack spacing={3}>
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="flex-start"
-        flexWrap="wrap"
-        gap={2}
-      >
-        <Box>
-          <Typography variant="headlineSmall" display="block">
-            صندوق پیشنهادات
-          </Typography>
-          <Typography
-            variant="bodyMedium"
-            color="text.secondary"
-            display="block"
-            sx={{ mt: 0.5 }}
-          >
-            همه موارد تیم — روی هر مورد بزنید تا جزئیات، عکس و کامنت را ببینید.
-          </Typography>
-        </Box>
-        <Button
-          component={RouterLink}
-          to="/feedback/new"
-          buttonVariant="filled"
-        >
-          ثبت مورد جدید
-        </Button>
-      </Stack>
+    <div className={styles.page}>
+      <div className={styles.head}>
+        <div>
+          <div className={styles.eyebrow}>پیشنهادات</div>
+          <h1 className={styles.title}>صندوق پیشنهاد و باگ</h1>
+          <p className={styles.sub}>
+            پیگیری موارد گزارش‌شده از تیم و مشتریان
+          </p>
+        </div>
+        <Link className={styles.primaryBtn} to="/feedback/new">
+          <DidbanIcon name="plus" size={17} />
+          ثبت پیشنهاد
+        </Link>
+      </div>
 
-      <Card elevation={1} sx={{ p: 2 }}>
-        <Stack
-          direction="row"
-          flexWrap="wrap"
-          gap={2}
-          alignItems="flex-end"
-          sx={{ mb: 2 }}
-        >
-          <Box sx={{ minWidth: 140, flex: '1 1 140px' }}>
-            <Typography
-              variant="labelMedium"
-              color="text.secondary"
-              display="block"
-              sx={{ mb: 0.75 }}
-            >
-              نوع
-            </Typography>
-            <Select
-              value={filterKind}
-              options={[{ id: 'all', label: 'همه انواع' }, ...kindOptions]}
-              open={kindOpen}
-              onOpenChange={setKindOpen}
-              onChange={setFilterKind}
-            />
-          </Box>
-          <Box sx={{ minWidth: 140, flex: '1 1 140px' }}>
-            <Typography
-              variant="labelMedium"
-              color="text.secondary"
-              display="block"
-              sx={{ mb: 0.75 }}
-            >
-              وضعیت
-            </Typography>
-            <Select
-              value={filterStatus}
-              options={statusOptions}
-              open={statusOpen}
-              onOpenChange={setStatusOpen}
-              onChange={setFilterStatus}
-            />
-          </Box>
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ pb: 0.5 }}>
-            <Switch
-              checked={mineOnly}
-              onChange={(_, c) => setMineOnly(c)}
-              inputProps={{ 'aria-label': 'فقط موارد من' }}
-            />
-            <Typography variant="bodyMedium">
-              فقط موارد من{user?.displayName ? ` (${user.displayName})` : ''}
-            </Typography>
-          </Stack>
-        </Stack>
+      <div className={styles.panelWrap}>
+        {error ? <div className={styles.error}>{error}</div> : null}
 
-        {error ? (
-          <Typography variant="bodySmall" color="error" display="block" sx={{ mb: 1 }}>
-            {error}
-          </Typography>
-        ) : null}
-
-        {loading ? (
-          <Typography variant="bodyMedium" color="text.secondary" aria-busy>
-            در حال بارگذاری…
-          </Typography>
-        ) : items.length === 0 ? (
-          <Typography variant="bodyMedium" color="text.secondary">
-            موردی با این فیلتر نیست.
-          </Typography>
-        ) : (
-          <Stack spacing={0}>
-            {items.map((it) => (
-              <Box
-                key={it.id}
-                component={RouterLink}
-                to={`/feedback/${it.id}`}
-                sx={{
-                  display: 'block',
-                  textDecoration: 'none',
-                  color: 'inherit',
-                  px: 1.5,
-                  py: 1.75,
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
-                  '&:hover': { bgcolor: 'action.hover' },
-                  '&:last-child': { borderBottom: 0 },
-                }}
-              >
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="flex-start"
-                  gap={1}
-                  flexWrap="wrap"
+        <div className={styles.layout}>
+          <div className={styles.panel}>
+            <div className={styles.filters}>
+              {(
+                [
+                  ['all', 'همه'],
+                  ['bug', 'باگ'],
+                  ['idea', 'پیشنهاد'],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`${styles.filterBtn}${filter === id ? ` ${styles.filterOn}` : ''}`}
+                  onClick={() => setFilter(id)}
                 >
-                  <Stack spacing={0.75} sx={{ minWidth: 0, flex: 1 }}>
-                    <Stack direction="row" flexWrap="wrap" gap={0.75} alignItems="center">
-                      <Typography
-                        variant="labelMedium"
-                        color="primary"
-                        display="inline"
-                      >
-                        {feedbackKey(it.id)}
-                      </Typography>
-                      <Chip
-                        size="small"
-                        label={kindLabelFa(it.kind)}
-                        color={kindColor(it.kind)}
-                      />
-                      <Chip
-                        size="small"
-                        label={statusLabelFa(it.status)}
-                        color={statusColor(it.status)}
-                      />
-                    </Stack>
-                    <Typography variant="titleMedium" display="block">
-                      {it.title}
-                    </Typography>
-                    <Typography
-                      variant="bodyMedium"
-                      color="text.secondary"
-                      display="block"
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div className={styles.list}>
+              {loading ? (
+                <div className={styles.empty}>در حال بارگذاری…</div>
+              ) : filtered.length === 0 ? (
+                <div className={styles.empty}>موردی با این فیلتر نیست.</div>
+              ) : (
+                filtered.map((it) => {
+                  const selected = it.id === selectId
+                  return (
+                    <button
+                      key={it.id}
+                      type="button"
+                      className={`${styles.row}${selected ? ` ${styles.rowSelected}` : ''}`}
+                      onClick={() => onSelect(it.id)}
                     >
-                      {truncateText(it.body, 160)}
-                    </Typography>
-                    <Typography variant="bodySmall" color="text.secondary" display="block">
-                      {it.displayName}
-                      {it.comments?.length
-                        ? ` · ${it.comments.length} کامنت`
+                      <span
+                        className={`${styles.typeDot} ${
+                          it.kind === 'bug' ? styles.typeBug : styles.typeIdea
+                        }`}
+                      />
+                      <div className={styles.rowMain}>
+                        <div className={styles.rowTitle}>{it.title}</div>
+                        <div className={styles.rowMeta}>
+                          {feedbackKey(it.id)}
+                          {it.brand?.brandName
+                            ? ` · ${it.brand.brandName}`
+                            : ''}
+                          {` · ${faWhen(it.updatedAt)}`}
+                        </div>
+                      </div>
+                      <span className={styles.chip}>
+                        {statusLabelFa(it.status)}
+                      </span>
+                    </button>
+                  )
+                })
+              )}
+            </div>
+          </div>
+
+          <div className={styles.detail}>
+            {!selectId || (!active && !detailLoading) ? (
+              <div className={styles.empty}>
+                یک مورد را از فهرست انتخاب کنید.
+              </div>
+            ) : detailLoading && !active ? (
+              <div className={styles.empty}>بارگذاری جزئیات…</div>
+            ) : active ? (
+              <>
+                <div className={styles.detailHead}>
+                  <div>
+                    <div className={styles.detailEyebrow}>
+                      {kindLabelFa(active.kind)} · {feedbackKey(active.id)}
+                    </div>
+                    <h2 className={styles.detailTitle}>{active.title}</h2>
+                    <div className={styles.detailSub}>
+                      {active.brand?.brandName
+                        ? `${active.brand.brandName} · `
                         : ''}
-                      {it.images?.length
-                        ? ` · ${it.images.length} عکس`
-                        : ''}
-                    </Typography>
-                  </Stack>
-                  <Typography
-                    variant="bodySmall"
-                    color="text.secondary"
-                    sx={{ whiteSpace: 'nowrap' }}
+                      {active.displayName} · {faWhen(active.updatedAt)}
+                    </div>
+                  </div>
+                  <span className={styles.chip}>
+                    {statusLabelFa(active.status)}
+                  </span>
+                </div>
+
+                <p className={styles.body}>{active.body}</p>
+
+                {staff ? (
+                  <div className={styles.statusRow}>
+                    {statusOptions.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        disabled={statusBusy}
+                        className={`${styles.statusBtn}${
+                          active.status === s ? ` ${styles.statusBtnOn}` : ''
+                        }`}
+                        onClick={() => void onStatus(s)}
+                      >
+                        {statusLabelFa(s)}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                <div className={styles.thread}>
+                  <div className={styles.msg}>
+                    <div className={styles.msgMeta}>
+                      گزارش‌دهنده · {active.displayName} ·{' '}
+                      {faWhen(active.createdAt)}
+                    </div>
+                    <div>{active.body}</div>
+                  </div>
+                  {(active.comments || []).map((c) => (
+                    <div
+                      key={c.id}
+                      className={`${styles.msg}${
+                        c.visibility === 'admin' ? ` ${styles.msgAdmin}` : ''
+                      }`}
+                    >
+                      <div className={styles.msgMeta}>
+                        {c.displayName}
+                        {c.visibility === 'admin' ? ' · ادمین' : ''} ·{' '}
+                        {faWhen(c.at)}
+                      </div>
+                      <div>{c.body}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <form className={styles.compose} onSubmit={(e) => void onComment(e)}>
+                  <input
+                    className={styles.composeInput}
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="پاسخ یا توضیح تکمیلی…"
+                  />
+                  <button
+                    type="submit"
+                    className={styles.sendBtn}
+                    disabled={commentBusy || !comment.trim()}
                   >
-                    {faWhen(it.updatedAt)}
-                  </Typography>
-                </Stack>
-              </Box>
-            ))}
-          </Stack>
-        )}
-      </Card>
-    </Stack>
+                    ارسال
+                  </button>
+                </form>
+
+                <Link className={styles.fullLink} to={`/feedback/${active.id}/edit`}>
+                  ویرایش کامل / تصاویر ←
+                </Link>
+              </>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

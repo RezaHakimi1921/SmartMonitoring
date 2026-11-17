@@ -6,18 +6,9 @@ import {
   type ClipboardEvent,
   type FormEvent,
 } from 'react'
-import { Link as RouterLink, useNavigate } from 'react-router-dom'
-import {
-  Box,
-  Button,
-  Card,
-  Select,
-  Stack,
-  Switch,
-  TextField,
-  Typography,
-} from '@smartx/design-system'
+import { Link, useNavigate } from 'react-router-dom'
 import { BrandSearch } from '../components/BrandSearch'
+import { DidbanIcon } from '../components/didbanIcons'
 import type { BrandBranch } from '../data/types'
 import {
   compressImageFile,
@@ -28,8 +19,15 @@ import {
   type FeedbackMetric,
 } from '../lib/feedbackApi'
 import { toFaDigits } from '../lib/jalali'
+import styles from './FeedbackNew.module.css'
 
 const MAX_IMAGES = 8
+
+const KIND_UI: { id: FeedbackKind; label: string }[] = [
+  { id: 'bug', label: 'باگ' },
+  { id: 'improvement', label: 'بهبود' },
+  { id: 'change', label: 'تغییر' },
+]
 
 export function FeedbackNewPage() {
   const navigate = useNavigate()
@@ -37,10 +35,9 @@ export function FeedbackNewPage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [imageBusy, setImageBusy] = useState(false)
-  const [formKindOpen, setFormKindOpen] = useState(false)
-  const [formMetricOpen, setFormMetricOpen] = useState(false)
+  const [showMore, setShowMore] = useState(false)
 
-  const [kind, setKind] = useState<FeedbackKind>('bug')
+  const [kind, setKind] = useState<FeedbackKind>('improvement')
   const [metricId, setMetricId] = useState('general')
   const [section, setSection] = useState('')
   const [title, setTitle] = useState('')
@@ -49,16 +46,7 @@ export function FeedbackNewPage() {
   const [needBrand, setNeedBrand] = useState(false)
   const [images, setImages] = useState<string[]>([])
 
-  const kindOptions = useMemo(
-    () => [
-      { id: 'bug', label: 'باگ' },
-      { id: 'improvement', label: 'بهبود' },
-      { id: 'change', label: 'تغییر' },
-    ],
-    [],
-  )
-
-  const formMetricOptions = useMemo(
+  const metricOptions = useMemo(
     () => metrics.map((m) => ({ id: m.id, label: metricOptionLabel(m) })),
     [metrics],
   )
@@ -118,6 +106,10 @@ export function FeedbackNewPage() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (title.trim().length < 3 || body.trim().length < 5) {
+      setError('عنوان و توضیحات را کامل‌تر بنویسید')
+      return
+    }
     setBusy(true)
     setError('')
     try {
@@ -149,200 +141,166 @@ export function FeedbackNewPage() {
   }
 
   return (
-    <Stack spacing={2}>
-      <Button
-        component={RouterLink}
-        to="/feedback"
-        buttonVariant="text"
-        buttonSize="small"
-        sx={{ alignSelf: 'flex-start' }}
-      >
-        → بازگشت به لیست
-      </Button>
+    <div className={styles.page} onPaste={onPasteImages}>
+      <form className={styles.card} onSubmit={(e) => void onSubmit(e)}>
+        <div className={styles.head}>
+          <div>
+            <h1>ثبت پیشنهاد جدید</h1>
+            <p>مشکل یا ایده خود را برای تیم محصول بنویسید.</p>
+          </div>
+          <Link
+            to="/feedback"
+            className={styles.closeBtn}
+            aria-label="بستن"
+          >
+            <DidbanIcon name="close" size={18} />
+          </Link>
+        </div>
 
-      <Box>
-        <Typography variant="headlineSmall" display="block">
-          ثبت مورد جدید
-        </Typography>
-        <Typography variant="bodyMedium" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-          باگ، بهبود یا تغییر — با شاخص، عکس و در صورت نیاز مجموعه
-        </Typography>
-      </Box>
+        <label className={styles.field}>
+          <span>عنوان</span>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="عنوان کوتاه و واضح"
+            required
+            minLength={3}
+          />
+        </label>
 
-      <Card elevation={1} sx={{ p: 1, overflow: 'visible' }}>
-        <Box component="form" onSubmit={onSubmit} onPaste={onPasteImages}>
-          <Stack spacing={2}>
-            <Box
-              sx={{
-                display: 'grid',
-                gap: 2,
-                gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+        <div className={styles.field}>
+          <span>نوع درخواست</span>
+          <div className={styles.kindRow}>
+            {KIND_UI.map((k) => (
+              <button
+                key={k.id}
+                type="button"
+                className={`${styles.kindBtn}${kind === k.id ? ` ${styles.kindOn}` : ''}`}
+                onClick={() => setKind(k.id)}
+              >
+                {k.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <label className={styles.field}>
+          <span>توضیحات</span>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="جزئیات، مراحل تکرار یا نتیجه مورد انتظار..."
+            required
+            minLength={5}
+          />
+        </label>
+
+        <div className={styles.attachRow}>
+          <label className={styles.attachBtn}>
+            <DidbanIcon name="attachment" size={18} />
+            پیوست فایل
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              multiple
+              hidden
+              disabled={imageBusy || images.length >= MAX_IMAGES}
+              onChange={(e) => {
+                void addImageFiles(Array.from(e.target.files || []))
+                e.target.value = ''
               }}
-            >
-              <Box>
-                <Typography variant="labelMedium" display="block" sx={{ mb: 0.75 }}>
-                  نوع مورد
-                </Typography>
-                <Select
-                  value={kind}
-                  options={kindOptions}
-                  open={formKindOpen}
-                  onOpenChange={setFormKindOpen}
-                  onChange={(id) => setKind(id as FeedbackKind)}
-                />
-              </Box>
-              <Box>
-                <Typography variant="labelMedium" display="block" sx={{ mb: 0.75 }}>
-                  شاخص (کیفی شاخص‌ها)
-                </Typography>
-                <Select
-                  value={metricId}
-                  options={formMetricOptions}
-                  open={formMetricOpen}
-                  onOpenChange={setFormMetricOpen}
-                  onChange={setMetricId}
-                  searchable
-                />
-              </Box>
-            </Box>
+            />
+          </label>
+          <span className={styles.attachHint}>
+            {images.length
+              ? `${toFaDigits(String(images.length))} پیوست`
+              : 'یا اسکرین‌شات را با Ctrl+V پیست کنید'}
+          </span>
+        </div>
 
-            <TextField
-              label="توضیح بخش / جزئیات بیشتر (اختیاری)"
-              value={section}
-              onChange={(e) => setSection(e.target.value)}
-              fullWidth
-            />
-            <TextField
-              label="عنوان کوتاه"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              fullWidth
-              inputProps={{ minLength: 3 }}
-            />
-            <TextField
-              label="شرح کامل"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              required
-              fullWidth
-              multiline
-              minRows={5}
-              inputProps={{ minLength: 5 }}
-            />
-
-            <Box
-              tabIndex={0}
-              onPaste={onPasteImages}
-              sx={{
-                outline: 'none',
-                borderRadius: 2,
-                border: '1px dashed',
-                borderColor: 'divider',
-                p: 1.5,
-              }}
-            >
-              <Typography variant="labelMedium" display="block" sx={{ mb: 0.75 }}>
-                عکس پیوست (حداکثر {MAX_IMAGES})
-              </Typography>
-              <Stack direction="row" flexWrap="wrap" gap={1} alignItems="center">
-                <Button
+        {images.length ? (
+          <div className={styles.thumbs}>
+            {images.map((src, idx) => (
+              <div key={`${idx}-${src.slice(0, 20)}`} className={styles.thumb}>
+                <img src={src} alt={`پیوست ${idx + 1}`} />
+                <button
                   type="button"
-                  buttonVariant="outlined"
-                  buttonSize="small"
-                  disabled={imageBusy || images.length >= MAX_IMAGES}
-                  loading={imageBusy}
-                  component="label"
+                  className={styles.thumbRemove}
+                  aria-label="حذف"
+                  onClick={() =>
+                    setImages((prev) => prev.filter((_, i) => i !== idx))
+                  }
                 >
-                  انتخاب عکس
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
-                    multiple
-                    hidden
-                    onChange={(e) => {
-                      void addImageFiles(Array.from(e.target.files || []))
-                      e.target.value = ''
-                    }}
-                  />
-                </Button>
-                <Typography variant="bodySmall" color="text.secondary">
-                  {images.length
-                    ? `${toFaDigits(String(images.length))} عکس`
-                    : 'اسکرین‌شات را با Ctrl+V پیست کنید'}
-                </Typography>
-              </Stack>
-              {images.length ? (
-                <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 1.5 }}>
-                  {images.map((src, idx) => (
-                    <Box
-                      key={`${idx}-${src.slice(0, 24)}`}
-                      sx={{
-                        position: 'relative',
-                        width: 96,
-                        height: 96,
-                        borderRadius: 2,
-                        overflow: 'hidden',
-                        border: '1px solid',
-                        borderColor: 'divider',
-                      }}
-                    >
-                      <Box
-                        component="img"
-                        src={src}
-                        alt={`پیوست ${idx + 1}`}
-                        sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                      />
-                      <Button
-                        type="button"
-                        buttonVariant="filled"
-                        buttonSize="small"
-                        onClick={() =>
-                          setImages((prev) => prev.filter((_, i) => i !== idx))
-                        }
-                        sx={{ position: 'absolute', top: 4, left: 4, minWidth: 0, px: 1 }}
-                      >
-                        حذف
-                      </Button>
-                    </Box>
-                  ))}
-                </Stack>
-              ) : null}
-            </Box>
+                  <DidbanIcon name="close" size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
 
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Switch
-                checked={needBrand}
-                onChange={(_, c) => {
-                  setNeedBrand(c)
-                  if (!c) setBrand(null)
-                }}
-                inputProps={{ 'aria-label': 'مربوط به یک مجموعه' }}
+        <button
+          type="button"
+          className={styles.moreToggle}
+          onClick={() => setShowMore((v) => !v)}
+        >
+          <DidbanIcon name="chevron" size={16} />
+          {showMore ? 'بستن جزئیات بیشتر' : 'جزئیات بیشتر (شاخص / مجموعه)'}
+        </button>
+
+        {showMore ? (
+          <div className={styles.moreBox}>
+            <label className={styles.field}>
+              <span>شاخص مرتبط</span>
+              <select
+                value={metricId}
+                onChange={(e) => setMetricId(e.target.value)}
+              >
+                {metricOptions.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.field}>
+              <span>بخش / یادداشت آزاد</span>
+              <input
+                value={section}
+                onChange={(e) => setSection(e.target.value)}
+                placeholder="مثلاً تقویم بازه یا صفحه گزارش"
               />
-              <Typography variant="bodyMedium">
-                مربوط به یک مجموعه خاص است
-              </Typography>
-            </Stack>
+            </label>
+            <label className={styles.brandToggle}>
+              <input
+                type="checkbox"
+                checked={needBrand}
+                onChange={(e) => {
+                  setNeedBrand(e.target.checked)
+                  if (!e.target.checked) setBrand(null)
+                }}
+              />
+              مربوط به یک مجموعه خاص است
+            </label>
             {needBrand ? <BrandSearch value={brand} onChange={setBrand} /> : null}
+          </div>
+        ) : null}
 
-            {error ? (
-              <Typography variant="bodySmall" color="error" display="block">
-                {error}
-              </Typography>
-            ) : null}
+        {error ? <div className={styles.error}>{error}</div> : null}
 
-            <Button
-              type="submit"
-              buttonVariant="filled"
-              disabled={busy || (needBrand && !brand)}
-              loading={busy}
-              sx={{ alignSelf: 'flex-start' }}
-            >
-              ثبت و باز کردن مورد
-            </Button>
-          </Stack>
-        </Box>
-      </Card>
-    </Stack>
+        <div className={styles.actions}>
+          <Link to="/feedback" className={styles.btnSoft}>
+            انصراف
+          </Link>
+          <button
+            type="submit"
+            className={styles.btnPrimary}
+            disabled={busy || (needBrand && !brand)}
+          >
+            <DidbanIcon name="plus" size={16} />
+            {busy ? 'در حال ثبت…' : 'ثبت پیشنهاد'}
+          </button>
+        </div>
+      </form>
+    </div>
   )
 }

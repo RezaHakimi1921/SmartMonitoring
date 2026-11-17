@@ -6,6 +6,10 @@ dist
 .env
 .env.*
 !.env.example
-.cursor/
+.cursor/*
+!.cursor/skills/
+!.cursor/skills/**
+!.cursor/rules/
+!.cursor/rules/**
 .claude-wt/
 **/node_modules/

@@ -430,7 +430,7 @@ function overall(f: FactAgg): ReportSection {
         label: 'تعداد سفارش',
         value: faInt(f.FactureCount),
         tone: f.FactureCount > 0 ? 'ok' : 'info',
-        note: 'Insight · Fact_SalesSummary.TotalOrders',
+        note: 'از گزارش فروش بازه',
       },
       {
         label: 'میانگین سفارش',
@@ -464,7 +464,7 @@ function subscription(f: FactAgg): ReportSection {
     })
   } else if (pct > 0) {
     hints.push({
-      text: 'اشتراک‌گیری در محدوده قابل قبول نسبت به آستانه Insight است',
+      text: 'اشتراک‌گیری در محدوده قابل قبول نسبت به آستانه تعریف‌شده است',
       tone: 'ok',
     })
   }
@@ -476,7 +476,7 @@ function subscription(f: FactAgg): ReportSection {
         label: 'درصد اشتراک‌گیری',
         value: faPercent(pct),
         tone: pct > 0 ? tone : 'nodata',
-        note: `آستانه خوب ≥ ${getThresholds().subscription.ok}٪ · Insight Fact_Subscription.MinFactureCount`,
+        note: `آستانه خوب ≥ ${getThresholds().subscription.ok}٪`,
       },
       {
         label: 'سفارش با اشتراک',
@@ -487,7 +487,7 @@ function subscription(f: FactAgg): ReportSection {
         label: 'کل سفارش (مخرج اشتراک)',
         value: faInt(base),
         tone: 'info',
-        note: 'MinFactureCount — جدا از «تعداد سفارش» کارت عملکرد',
+        note: 'مخرج محاسبهٔ درصد اشتراک — جدا از «تعداد سفارش» کارت عملکرد',
       },
     ],
     rows: f.SubRows.length > 0 ? f.SubRows : undefined,
@@ -516,7 +516,7 @@ function survey(f: FactAgg): ReportSection {
         label: 'پیامک نظرسنجی',
         value: faInt(f.SurveyCount),
         tone: f.SurveyCount > 0 ? 'ok' : 'info',
-        note: 'SmartBi · Fact_SatisfactionSummary',
+        note: 'از گزارش نظرسنجی بازه',
       },
       {
         label: 'پاسخ ثبت‌شده',
@@ -550,7 +550,7 @@ function credit(f: FactAgg): ReportSection {
         label: 'تعداد اعتبار تولیدشده',
         value: faInt(f.CreatedAct),
         tone: f.CreatedAct > 0 ? 'ok' : f.FactureCount > 0 ? 'warn' : 'info',
-        note: 'SmartBi · BI_BranchCredit',
+        note: 'از گزارش اعتبار باشگاه',
       },
       {
         label: 'تعداد اعتبار مصرف‌شده',
@@ -645,7 +645,7 @@ function balance(f: FactAgg): ReportSection {
         label: 'مشتریان یک سال اخیر',
         value: faInt(yearBase),
         tone: 'info',
-        note: 'SmartBi · BI_BranchLostCustomers',
+        note: 'از گزارش مشتریان ازدست‌رفته',
       },
       {
         label: 'فعال ماه اخیر',
@@ -688,13 +688,13 @@ function panelCharge(f: FactAgg): ReportSection {
         label: 'روزهای بدون شارژ پیامک',
         value: `${faInt(f.NegChargeDays)} روز`,
         tone,
-        note: 'SmartPowerBI · V_BI_BranchSmsCharge',
+        note: 'روزهایی که شارژ پیامک کافی نبوده',
       },
       {
         label: 'از کل روزهای بازه (اتصال)',
         value: faInt(f.DayCount),
         tone: 'info',
-        note: 'Fact_Branch فقط برای شمارش روزهای تقویم اتصال',
+        note: 'تعداد روزهای تقویم بازه برای اتصال',
       },
     ],
     hints:
@@ -736,7 +736,7 @@ function connection(f: FactAgg): ReportSection {
         label: 'روزهای قطع ارتباط (بازه)',
         value: `${faInt(f.DisconnectDays)} روز`,
         tone,
-        note: 'SmartProjectDW · Fact_Branch · فقط HowManydaysDisconnected',
+        note: 'روزهای قطع ارتباط ثبت‌شده در بازه',
       },
     ],
     hints: hints.length ? hints : undefined,

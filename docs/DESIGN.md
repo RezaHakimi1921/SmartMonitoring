@@ -7,11 +7,12 @@
 
 | اولویت | منبع |
 |--------|------|
-| ۱ | **`@smartx/design-system`** — راهنما: [`SMARTX_DESIGN_SYSTEM_OUTSIDE.md`](./SMARTX_DESIGN_SYSTEM_OUTSIDE.md) |
-| ۲ | قانون Cursor: `.cursor/rules/smartx-design-system.mdc` |
-| ۳ | این فایل (`DESIGN.md`) — وضعیت فعلی / inventory صفحات تا مهاجرت کامل |
+| ۱ | **[`DIDBAN_UI.md`](./DIDBAN_UI.md)** + اسکیل `.cursor/skills/didban-ui` — UI فعلی Figma Make (زیتونی، CSS Modules، journey) |
+| ۲ | **`@smartx/design-system`** — راهنما: [`SMARTX_DESIGN_SYSTEM_OUTSIDE.md`](./SMARTX_DESIGN_SYSTEM_OUTSIDE.md) |
+| ۳ | قانون Cursor: `.cursor/rules/didban-ui.mdc` / `smartx-design-system.mdc` |
+| ۴ | این فایل (`DESIGN.md`) — تاریخچه / inventory؛ رنگ آبی قدیمی زیر را برای journey جدید استفاده نکن |
 
-هدف: ظاهر مثل اپ‌های اسمارت (تم، IRANYekan، کامپوننت‌های DS). مهاجرت صفحهٔ اصلی انجام شده؛ CSS محلی فقط برای جزئیات گزارش/legacy باقی مانده است.
+هدف: ظاهر مثل اپ‌های اسمارت با زبان بصری دیدبان (پالت زیتونی Make). برای صفحات journey / گزارش / تنظیمات از `DIDBAN_UI.md` پیروی کن.
 
 ---
 

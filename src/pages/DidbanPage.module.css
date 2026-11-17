@@ -1,0 +1,257 @@
+.page {
+  direction: rtl;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 8px 4px 40px;
+}
+
+.head {
+  margin-bottom: 18px;
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  color: #8a8d7f;
+  margin-bottom: 6px;
+}
+
+.head h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #1a1c16;
+}
+
+.head p {
+  margin: 8px 0 0;
+  color: #5c5f52;
+  font-size: 14px;
+}
+
+.panel {
+  border: 1px solid #e8ebdd;
+  border-radius: 24px;
+  background: #fff;
+  padding: 18px;
+}
+
+.panelNarrow {
+  composes: panel;
+  max-width: 560px;
+}
+
+.faqList {
+  display: grid;
+  gap: 10px;
+}
+
+.faqItem {
+  border: 1px solid #e8ebdd;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #fcfdf8;
+}
+
+.faqItem summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  color: #1a1c16;
+  list-style: none;
+}
+
+.faqItem summary::-webkit-details-marker {
+  display: none;
+}
+
+.faqItem p {
+  margin: 10px 0 0;
+  color: #5c5f52;
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+
+.steps {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid #e8ebdd;
+  background: #fff;
+}
+
+.stepNum {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: #e8f2c4;
+  color: #4e6300;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.stepTitle {
+  font-weight: 800;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.stepText {
+  color: #5c5f52;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #5c5f52;
+  font-weight: 600;
+}
+
+.field input,
+.field select {
+  height: 44px;
+  border: 1px solid #e8ebdd;
+  border-radius: 12px;
+  padding: 0 12px;
+  font: inherit;
+  background: #fcfdf8;
+  color: #1a1c16;
+}
+
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: #668100;
+  box-shadow: 0 0 0 3px rgba(102, 129, 0, 0.12);
+}
+
+.btnPrimary {
+  height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 14px;
+  background: #668100;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnGhost {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1.5px solid #e8ebdd;
+  background: #fff;
+  color: #1a1c16;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.error {
+  color: #b91c1c;
+  font-size: 13px;
+  margin: 8px 0;
+}
+
+.muted {
+  color: #5c5f52;
+  font-size: 13px;
+}
+
+.inboxList {
+  display: grid;
+  gap: 8px;
+}
+
+.inboxRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #e8ebdd;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  background: #e8f2c4;
+  color: #4e6300;
+  flex-shrink: 0;
+}
+
+.rowTitle {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.rowSub {
+  font-size: 12px;
+  color: #5c5f52;
+  margin-top: 2px;
+}
+
+.tplGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.tplCard {
+  border: 1px solid #e8ebdd;
+  border-radius: 18px;
+  background: #fff;
+  padding: 16px;
+}
+
+.tplTitle {
+  font-weight: 800;
+  font-size: 15px;
+  margin: 10px 0 6px;
+}
+
+.tplDesc {
+  font-size: 12.5px;
+  color: #5c5f52;
+  line-height: 1.55;
+}
+
+.tplMeta {
+  margin-top: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #668100;
+}
+
+@media (max-width: 900px) {
+  .tplGrid {
+    grid-template-columns: 1fr;
+  }
+}

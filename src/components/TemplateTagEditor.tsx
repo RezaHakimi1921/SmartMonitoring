@@ -6,7 +6,6 @@ import {
   Card,
   Chip,
   Stack,
-  Switch,
   Typography,
 } from '@smartx/design-system'
 
@@ -120,11 +119,18 @@ export function TemplateTagEditor({
       </Box>
 
       {tags.length > 8 ? (
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-          <Switch
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={1}
+          sx={{ mb: 2 }}
+          component="label"
+        >
+          <input
+            type="checkbox"
             checked={showAll}
-            onChange={(_, checked) => setShowAll(checked)}
-            inputProps={{ 'aria-label': 'مشاهده سایر پارامترها' }}
+            onChange={(e) => setShowAll(e.target.checked)}
+            aria-label="مشاهده سایر پارامترها"
           />
           <Typography variant="bodyMedium">مشاهده سایر پارامترها</Typography>
         </Stack>

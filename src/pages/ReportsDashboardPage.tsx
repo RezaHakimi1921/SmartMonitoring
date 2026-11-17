@@ -1,15 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link as RouterLink } from 'react-router-dom'
-import {
-  Box,
-  Button,
-  Card,
-  Chip,
-  Select,
-  Stack,
-  Switch,
-  Typography,
-} from '@smartx/design-system'
+import { Link } from 'react-router-dom'
+import { DidbanIcon } from '../components/didbanIcons'
 import {
   fetchReports,
   type ReportAuthor,
@@ -19,6 +10,9 @@ import {
 import { useAuth } from '../lib/authContext'
 import { loadReviewTypes } from '../lib/storage'
 import { formatJalaliLong, gregorianToJalali, toFaDigits } from '../lib/jalali'
+import styles from './ReportsInbox.module.css'
+
+type TabId = 'all' | 'followup' | 'sent'
 
 function faWhen(iso: string) {
   const d = new Date(iso)
@@ -29,32 +23,29 @@ function faWhen(iso: string) {
   return `${formatJalaliLong(gregorianToJalali(d))} · ${time}`
 }
 
-const STAGE_FILTERS: { id: string; label: string }[] = [
-  { id: 'all', label: 'همه مراحل' },
-  { id: 'summary', label: 'خلاصه' },
-  { id: 'section', label: 'بررسی بخش‌ها' },
-  { id: 'diag', label: 'نکات پیگیری' },
-  { id: 'send', label: 'آماده ارسال' },
-  { id: 'sent', label: 'ارسال‌شده' },
-]
-
-function stageChipColor(
-  r: ServerReport,
-): 'default' | 'primary' | 'success' | 'warning' | 'info' {
-  if (r.status === 'sent' || r.stageKey === 'sent') return 'success'
-  if (r.stageKey === 'send') return 'primary'
-  if (r.stageKey === 'diag') return 'warning'
-  if (r.stageKey === 'section') return 'info'
-  return 'default'
-}
-
 function stageText(r: ServerReport) {
   if (r.status === 'sent' || r.stageKey === 'sent') return 'ارسال‌شده'
   if (r.stageLabel) return r.stageLabel
   return 'در حال بررسی'
 }
 
-function progressText(r: ServerReport) {
+function isSent(r: ServerReport) {
+  return r.status === 'sent' || r.stageKey === 'sent'
+}
+
+function needsFollowup(r: ServerReport) {
+  if (isSent(r)) return false
+  return r.stageKey === 'diag' || r.stageKey === 'send' || r.stageKey === 'section'
+}
+
+function progressPct(r: ServerReport) {
+  if (!r.stepTotal) return 0
+  return Math.round(
+    (Math.min(r.stepIndex + 1, r.stepTotal) / r.stepTotal) * 100,
+  )
+}
+
+function progressLabel(r: ServerReport) {
   if (!r.stepTotal) return '—'
   return `${toFaDigits(Math.min(r.stepIndex + 1, r.stepTotal))} از ${toFaDigits(r.stepTotal)}`
 }
@@ -64,25 +55,22 @@ function openHref(r: ServerReport) {
   return r.query ? `${base}?${r.query}` : base
 }
 
-function FilterField({
-  label,
-  children,
-}: {
-  label: string
-  children: React.ReactNode
-}) {
-  return (
-    <Box sx={{ minWidth: 160, flex: '1 1 160px' }}>
-      <Typography
-        variant="labelMedium"
-        color="text.secondary"
-        sx={{ mb: 0.75, display: 'block' }}
-      >
-        {label}
-      </Typography>
-      {children}
-    </Box>
-  )
+function chipClass(r: ServerReport) {
+  if (isSent(r)) return styles.chipOk
+  if (r.stageKey === 'diag' || r.stageKey === 'send') return styles.chipWarn
+  if (r.stageKey === 'section') return styles.chipInfo
+  return styles.chipNeutral
+}
+
+function scoreClass(pct: number) {
+  if (pct >= 80) return styles.score
+  if (pct >= 50) return `${styles.score} ${styles.scoreWarn}`
+  return `${styles.score} ${styles.scoreBad}`
+}
+
+function initials(name: string) {
+  const t = name.trim()
+  return t ? t.slice(-2) : '؟'
 }
 
 export function ReportsDashboardPage() {
@@ -91,328 +79,308 @@ export function ReportsDashboardPage() {
   const [authors, setAuthors] = useState<ReportAuthor[]>([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [query, setQuery] = useState('')
+  const [tab, setTab] = useState<TabId>('all')
+  const [showFilters, setShowFilters] = useState(false)
   const [userId, setUserId] = useState('all')
   const [typeId, setTypeId] = useState('all')
   const [stageKey, setStageKey] = useState('all')
   const [mineOnly, setMineOnly] = useState(false)
-  const [userOpen, setUserOpen] = useState(false)
-  const [stageOpen, setStageOpen] = useState(false)
-  const [typeOpen, setTypeOpen] = useState(false)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const types = useMemo(() => loadReviewTypes(), [])
 
   const effectiveUserId =
     mineOnly && user ? user.id : userId === 'all' ? '' : userId
 
-  const reload = async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const data = await fetchReports({
-        userId: effectiveUserId || undefined,
-        typeId: typeId === 'all' ? undefined : typeId,
-        stageKey:
-          stageKey === 'all' ? undefined : (stageKey as ReportStageKey),
-      })
-      setReports(data.reports)
-      setAuthors(data.authors)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'خطا')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
-    void reload()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let cancelled = false
+    void (async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const data = await fetchReports({
+          userId: effectiveUserId || undefined,
+          typeId: typeId === 'all' ? undefined : typeId,
+          stageKey:
+            stageKey === 'all' ? undefined : (stageKey as ReportStageKey),
+        })
+        if (cancelled) return
+        setReports(data.reports)
+        setAuthors(data.authors)
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'خطا')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [effectiveUserId, typeId, stageKey])
 
   const counts = useMemo(() => {
-    const all = reports
+    const q = query.trim()
+    const base = !q
+      ? reports
+      : reports.filter(
+          (r) =>
+            r.brandName.includes(q) ||
+            r.branchName.includes(q) ||
+            r.typeTitle.includes(q) ||
+            r.displayName.includes(q),
+        )
     return {
-      total: all.length,
-      sent: all.filter((r) => r.status === 'sent' || r.stageKey === 'sent')
-        .length,
-      inProgress: all.filter(
-        (r) => r.status !== 'sent' && r.stageKey !== 'sent',
-      ).length,
+      all: base.length,
+      followup: base.filter(needsFollowup).length,
+      sent: base.filter(isSent).length,
+      rows: base,
     }
-  }, [reports])
+  }, [reports, query])
 
-  const authorOptions = useMemo(
-    () => [
-      { id: 'all', label: 'همه کاربران' },
-      ...authors.map((u) => ({
-        id: u.userId,
-        label: u.username
-          ? `${u.displayName} (${u.username})`
-          : u.displayName,
-      })),
-    ],
-    [authors],
-  )
+  const filtered = useMemo(() => {
+    if (tab === 'followup') return counts.rows.filter(needsFollowup)
+    if (tab === 'sent') return counts.rows.filter(isSent)
+    return counts.rows
+  }, [counts.rows, tab])
 
-  const typeOptions = useMemo(
-    () => [
-      { id: 'all', label: 'همه' },
-      ...types.map((t) => ({ id: t.id, label: t.title })),
-    ],
-    [types],
-  )
+  useEffect(() => {
+    if (!filtered.length) {
+      setSelectedId(null)
+      return
+    }
+    if (!selectedId || !filtered.some((r) => r.id === selectedId)) {
+      setSelectedId(filtered[0]!.id)
+    }
+  }, [filtered, selectedId])
+
+  const current = filtered.find((r) => r.id === selectedId) ?? null
+  const pct = current ? progressPct(current) : 0
 
   return (
-    <Stack spacing={3}>
-      <Box>
-        <Typography variant="headlineSmall">صندوق گزارش‌ها</Typography>
-        <Typography variant="bodyMedium" color="text.secondary">
-          همه گزارش‌های ثبت‌شده تیم را ببینید، بر اساس کاربر و مرحله فیلتر کنید و
-          وضعیت هر کدام را پیگیری کنید.
-        </Typography>
-      </Box>
+    <div className={styles.page}>
+      <div className={styles.head}>
+        <div>
+          <div className={styles.eyebrow}>صندوق گزارش‌ها</div>
+          <h1 className={styles.title}>گزارش‌های بررسی</h1>
+          <p className={styles.sub}>
+            همه گزارش‌های تیم را ببینید، پیگیری کنید و برای مشتری بفرستید.
+          </p>
+        </div>
+        <Link className={styles.primaryBtn} to="/">
+          <DidbanIcon name="plus" size={17} />
+          بررسی جدید
+        </Link>
+      </div>
 
-      <Box
-        sx={{
-          display: 'grid',
-          gap: 1.5,
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
-        }}
-      >
-        {(
-          [
-            ['کل در فیلتر', counts.total],
-            ['در حال انجام', counts.inProgress],
-            ['ارسال‌شده', counts.sent],
-          ] as const
-        ).map(([label, value]) => (
-          <Card key={label} elevation={1} sx={{ p: 2 }}>
-            <Typography variant="labelMedium" color="text.secondary">
-              {label}
-            </Typography>
-            <Typography variant="headlineSmall">
-              {toFaDigits(value)}
-            </Typography>
-          </Card>
-        ))}
-      </Box>
-
-      <Card elevation={1} sx={{ p: 2 }}>
-        <Stack
-          direction="row"
-          flexWrap="wrap"
-          gap={2}
-          alignItems="flex-end"
-        >
-          <FilterField label="کاربر">
-            <Select
-              value={mineOnly ? 'all' : userId}
-              options={authorOptions}
-              open={userOpen}
-              onOpenChange={setUserOpen}
-              disabled={mineOnly}
-              onChange={setUserId}
-              placeholder="همه کاربران"
-            />
-          </FilterField>
-          <FilterField label="مرحله">
-            <Select
-              value={stageKey}
-              options={STAGE_FILTERS}
-              open={stageOpen}
-              onOpenChange={setStageOpen}
-              onChange={setStageKey}
-              placeholder="همه مراحل"
-            />
-          </FilterField>
-          <FilterField label="نوع بررسی">
-            <Select
-              value={typeId}
-              options={typeOptions}
-              open={typeOpen}
-              onOpenChange={setTypeOpen}
-              onChange={setTypeId}
-              placeholder="همه"
-            />
-          </FilterField>
-          <Stack
-            direction="row"
-            alignItems="center"
-            spacing={1}
-            sx={{ pb: 0.5 }}
+      <div className={styles.toolbar}>
+        <label className={styles.search}>
+          <DidbanIcon name="search" size={18} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="جست‌وجوی مجموعه یا نوع بررسی…"
+          />
+        </label>
+        <div className={styles.tabs}>
+          <button
+            type="button"
+            className={`${styles.tab}${tab === 'all' ? ` ${styles.tabOn}` : ''}`}
+            onClick={() => setTab('all')}
           >
-            <Switch
-              checked={mineOnly}
-              onChange={(_, checked) => {
-                setMineOnly(checked)
-                if (checked) setUserId('all')
-              }}
-              inputProps={{ 'aria-label': 'فقط گزارش‌های من' }}
-            />
-            <Typography variant="bodyMedium">فقط گزارش‌های من</Typography>
-          </Stack>
-        </Stack>
-      </Card>
+            همه <em>{toFaDigits(counts.all)}</em>
+          </button>
+          <button
+            type="button"
+            className={`${styles.tab}${tab === 'followup' ? ` ${styles.tabOn}` : ''}`}
+            onClick={() => setTab('followup')}
+          >
+            نیازمند پیگیری <em>{toFaDigits(counts.followup)}</em>
+          </button>
+          <button
+            type="button"
+            className={`${styles.tab}${tab === 'sent' ? ` ${styles.tabOn}` : ''}`}
+            onClick={() => setTab('sent')}
+          >
+            ارسال شده <em>{toFaDigits(counts.sent)}</em>
+          </button>
+        </div>
+        <button
+          type="button"
+          className={`${styles.filterBtn}${showFilters ? ` ${styles.filterBtnOn}` : ''}`}
+          onClick={() => setShowFilters((v) => !v)}
+        >
+          <DidbanIcon name="filter" size={17} />
+          فیلترها
+        </button>
+      </div>
 
-      {error ? (
-        <Typography variant="bodyMedium" color="error">
-          {error}
-        </Typography>
+      {showFilters ? (
+        <div className={styles.filterPanel}>
+          <label className={styles.filterField}>
+            <span>کاربر</span>
+            <select
+              value={mineOnly ? 'all' : userId}
+              disabled={mineOnly}
+              onChange={(e) => setUserId(e.target.value)}
+            >
+              <option value="all">همه کاربران</option>
+              {authors.map((u) => (
+                <option key={u.userId} value={u.userId}>
+                  {u.username
+                    ? `${u.displayName} (${u.username})`
+                    : u.displayName}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={styles.filterField}>
+            <span>نوع بررسی</span>
+            <select value={typeId} onChange={(e) => setTypeId(e.target.value)}>
+              <option value="all">همه</option>
+              {types.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={styles.filterField}>
+            <span>مرحله</span>
+            <select
+              value={stageKey}
+              onChange={(e) => setStageKey(e.target.value)}
+            >
+              <option value="all">همه مراحل</option>
+              <option value="summary">خلاصه</option>
+              <option value="section">بررسی بخش‌ها</option>
+              <option value="diag">نکات پیگیری</option>
+              <option value="send">آماده ارسال</option>
+              <option value="sent">ارسال‌شده</option>
+            </select>
+          </label>
+          <label className={styles.checkRow}>
+            <input
+              type="checkbox"
+              checked={mineOnly}
+              onChange={(e) => {
+                setMineOnly(e.target.checked)
+                if (e.target.checked) setUserId('all')
+              }}
+            />
+            فقط گزارش‌های من
+          </label>
+        </div>
       ) : null}
 
-      <Card elevation={1} sx={{ p: 1 }}>
-        {loading ? (
-          <Typography
-            variant="bodyMedium"
-            color="text.secondary"
-            aria-busy
-            sx={{ p: 2 }}
-          >
-            در حال بارگذاری صندوق…
-          </Typography>
-        ) : reports.length === 0 ? (
-          <Typography
-            variant="bodyMedium"
-            color="text.secondary"
-            sx={{ p: 2 }}
-          >
-            گزارشی با این فیلتر پیدا نشد.
-          </Typography>
-        ) : (
-          <Box sx={{ overflowX: 'auto' }}>
-            <Box
-              component="table"
-              sx={{
-                width: '100%',
-                tableLayout: 'fixed',
-                borderCollapse: 'collapse',
-                '& th, & td': {
-                  textAlign: 'right',
-                  py: 1.5,
-                  px: 1.25,
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
-                  verticalAlign: 'top',
-                  overflow: 'hidden',
-                },
-                '& th': {
-                  typography: 'labelMedium',
-                  color: 'text.secondary',
-                  whiteSpace: 'nowrap',
-                },
-              }}
-            >
-              <thead>
-                <tr>
-                  <th style={{ width: '16%' }}>کاربر</th>
-                  <th style={{ width: '28%' }}>نوع / مجموعه</th>
-                  <th style={{ width: '16%' }}>مرحله</th>
-                  <th style={{ width: '10%' }}>پیشرفت</th>
-                  <th style={{ width: '18%' }}>آخرین فعالیت</th>
-                  <th style={{ width: '12%' }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {reports.map((r) => {
-                  const editedByOther =
-                    !!r.lastActorUserId &&
-                    r.lastActorUserId !== r.userId &&
-                    !!r.lastActorDisplayName
-                  return (
-                  <tr key={r.id}>
-                    <td>
-                      <Stack spacing={0.5}>
-                        <Typography
-                          variant="titleSmall"
-                          component="div"
-                          sx={{ display: 'block' }}
-                        >
-                          {r.displayName}
-                        </Typography>
-                        <Typography
-                          variant="bodySmall"
-                          color="text.secondary"
-                          component="div"
-                          dir="ltr"
-                          sx={{ display: 'block', textAlign: 'right' }}
-                        >
-                          {r.username}
-                        </Typography>
-                        {editedByOther ? (
-                          <Typography
-                            variant="bodySmall"
-                            color="text.secondary"
-                            component="div"
-                            sx={{ display: 'block' }}
-                          >
-                            آخرین ویرایش: {r.lastActorDisplayName}
-                          </Typography>
-                        ) : null}
-                      </Stack>
-                    </td>
-                    <td>
-                      <Stack spacing={0.5}>
-                        <Typography
-                          variant="titleSmall"
-                          component="div"
-                          sx={{ display: 'block', wordBreak: 'break-word' }}
-                        >
-                          {r.typeTitle}
-                        </Typography>
-                        <Typography
-                          variant="bodySmall"
-                          color="text.secondary"
-                          component="div"
-                          sx={{ display: 'block', wordBreak: 'break-word' }}
-                        >
-                          {r.brandName}
-                          {r.branchName && r.branchName !== r.brandName
-                            ? ` — ${r.branchName}`
-                            : ''}
-                        </Typography>
-                      </Stack>
-                    </td>
-                    <td>
-                      <Chip
-                        label={stageText(r)}
-                        size="small"
-                        color={stageChipColor(r)}
-                      />
-                    </td>
-                    <td>
-                      <Typography
-                        variant="bodySmall"
-                        component="div"
-                        sx={{ display: 'block' }}
-                      >
-                        {progressText(r)}
-                      </Typography>
-                    </td>
-                    <td>
-                      <Typography
-                        variant="bodySmall"
-                        component="div"
-                        sx={{ display: 'block' }}
-                      >
-                        {faWhen(r.updatedAt)}
-                      </Typography>
-                    </td>
-                    <td>
-                      <Button
-                        component={RouterLink}
-                        to={openHref(r)}
-                        buttonVariant="text"
-                        buttonSize="small"
-                      >
-                        باز کردن
-                      </Button>
-                    </td>
-                  </tr>
-                  )
-                })}
-              </tbody>
-            </Box>
-          </Box>
-        )}
-      </Card>
-    </Stack>
+      {error ? <div className={styles.error}>{error}</div> : null}
+
+      <div className={styles.layout}>
+        <section className={styles.table}>
+          <div className={styles.tableHead}>
+            <span>مجموعه</span>
+            <span>نوع بررسی</span>
+            <span>پیشرفت</span>
+            <span>وضعیت</span>
+            <span>تاریخ</span>
+          </div>
+          {loading ? (
+            <div className={styles.empty}>در حال بارگذاری صندوق…</div>
+          ) : filtered.length === 0 ? (
+            <div className={styles.empty}>گزارشی پیدا نشد.</div>
+          ) : (
+            filtered.map((r) => {
+              const selected = r.id === selectedId
+              const p = progressPct(r)
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  className={`${styles.tableRow}${selected ? ` ${styles.tableRowSelected}` : ''}`}
+                  onClick={() => setSelectedId(r.id)}
+                >
+                  <span className={styles.collection}>
+                    <i className={styles.avatar}>{initials(r.brandName)}</i>
+                    <strong>{r.brandName}</strong>
+                    <small>{r.displayName}</small>
+                  </span>
+                  <span>{r.typeTitle}</span>
+                  <span className={scoreClass(p)}>
+                    {p > 0 ? toFaDigits(p) : '—'}
+                  </span>
+                  <span>
+                    <em className={`${styles.chip} ${chipClass(r)}`}>
+                      {stageText(r)}
+                    </em>
+                  </span>
+                  <span className={styles.dateCell}>
+                    {faWhen(r.updatedAt)}
+                    <DidbanIcon name="chevron" size={15} />
+                  </span>
+                </button>
+              )
+            })
+          )}
+        </section>
+
+        <aside className={styles.drawer}>
+          {!current ? (
+            <div className={styles.empty}>یک گزارش را انتخاب کنید.</div>
+          ) : (
+            <>
+              <div className={styles.drawerHead}>
+                <span className={`${styles.chip} ${chipClass(current)}`}>
+                  {stageText(current)}
+                </span>
+                <DidbanIcon name="more" size={18} />
+              </div>
+              <div className={styles.drawerTitle}>
+                <span className={styles.avatar}>
+                  {initials(current.brandName)}
+                </span>
+                <div>
+                  <h2>{current.brandName}</h2>
+                  <p>
+                    {current.typeTitle} · {faWhen(current.updatedAt)}
+                  </p>
+                </div>
+              </div>
+              <div className={styles.drawerScore}>
+                <div className={styles.smallScore}>
+                  {pct > 0 ? toFaDigits(pct) : '—'}
+                </div>
+                <div>
+                  <strong>پیشرفت گزارش</strong>
+                  <small>{progressLabel(current)}</small>
+                </div>
+              </div>
+              <div className={styles.facts}>
+                <span>
+                  <small>مسئول بررسی</small>
+                  <strong>{current.displayName}</strong>
+                </span>
+                <span>
+                  <small>شعبه</small>
+                  <strong>{current.branchName || '—'}</strong>
+                </span>
+                <span>
+                  <small>مرحله</small>
+                  <strong>{stageText(current)}</strong>
+                </span>
+              </div>
+              <div className={styles.actions}>
+                <Link className={styles.actionPrimary} to={openHref(current)}>
+                  <DidbanIcon name="eye" size={17} />
+                  مشاهده گزارش
+                </Link>
+                <Link className={styles.actionSoft} to={openHref(current)}>
+                  <DidbanIcon name="download" size={17} />
+                  ادامه / ارسال
+                </Link>
+              </div>
+            </>
+          )}
+        </aside>
+      </div>
+    </div>
   )
 }

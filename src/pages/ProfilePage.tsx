@@ -1,15 +1,8 @@
 import { useState, type FormEvent } from 'react'
-import {
-  Box,
-  Button,
-  Card,
-  Snackbar,
-  Stack,
-  TextField,
-  Typography,
-} from '@smartx/design-system'
+import { DidbanToast } from '../components/DidbanToast'
 import { roleLabel, useAuth } from '../lib/authContext'
 import { updateMyProfile } from '../lib/authApi'
+import styles from './DidbanPage.module.css'
 
 export function ProfilePage() {
   const { user, refresh } = useAuth()
@@ -73,129 +66,85 @@ export function ProfilePage() {
   }
 
   return (
-    <Stack spacing={3}>
-      <Box>
-        <Typography variant="headlineSmall" display="block">
-          حساب من
-        </Typography>
-        <Typography
-          variant="bodyMedium"
-          color="text.secondary"
-          display="block"
-          sx={{ mt: 0.5 }}
-        >
-          فقط نام نمایشی و رمز خودتان را می‌توانید عوض کنید.
-        </Typography>
-      </Box>
+    <div className={styles.page}>
+      <div className={styles.head}>
+        <div className={styles.eyebrow}>حساب من</div>
+        <h1>{user.displayName || user.username}</h1>
+        <p>
+          {roleLabel(user.role)} · ویرایش نام و رمز عبور
+        </p>
+      </div>
 
-      <Card elevation={1} sx={{ p: 2 }}>
-        <Typography variant="titleMedium" display="block" sx={{ mb: 1 }}>
-          مشخصات
-        </Typography>
-        <Typography variant="bodyMedium" color="text.secondary" display="block">
+      <div className={styles.panelNarrow}>
+        <p className={styles.muted} style={{ marginTop: 0 }}>
           نام کاربری: {user.username}
-        </Typography>
-        <Typography variant="bodyMedium" color="text.secondary" display="block">
-          نقش: {roleLabel(user.role)}
-        </Typography>
-      </Card>
+        </p>
 
-      <Card elevation={1} sx={{ p: 2 }}>
-        <Box component="form" onSubmit={onSaveName}>
-          <Stack spacing={2}>
-            <Typography variant="titleMedium" display="block">
-              نام نمایشی
-            </Typography>
-            <TextField
-              label="نام"
+        <form onSubmit={onSaveName}>
+          <label className={styles.field}>
+            <span>نام نمایشی</span>
+            <input
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               required
-              fullWidth
-              inputProps={{ minLength: 2 }}
+              minLength={2}
             />
-            <Button
-              type="submit"
-              buttonVariant="filled"
-              loading={busy}
-              disabled={busy || displayName.trim() === user.displayName}
-              sx={{ alignSelf: 'flex-start' }}
-            >
-              ذخیره نام
-            </Button>
-          </Stack>
-        </Box>
-      </Card>
+          </label>
+          <button
+            type="submit"
+            className={styles.btnPrimary}
+            disabled={busy || displayName.trim() === user.displayName}
+          >
+            ذخیره نام
+          </button>
+        </form>
 
-      <Card elevation={1} sx={{ p: 2 }}>
-        <Box component="form" onSubmit={onSavePassword}>
-          <Stack spacing={2}>
-            <Typography variant="titleMedium" display="block">
-              تغییر رمز عبور
-            </Typography>
-            <TextField
-              label="رمز فعلی"
+        <form onSubmit={onSavePassword} style={{ marginTop: 24 }}>
+          <label className={styles.field}>
+            <span>رمز فعلی</span>
+            <input
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               required
-              fullWidth
               autoComplete="current-password"
             />
-            <TextField
-              label="رمز جدید"
+          </label>
+          <label className={styles.field}>
+            <span>رمز عبور جدید</span>
+            <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              fullWidth
-              inputProps={{ minLength: 6 }}
+              minLength={6}
               autoComplete="new-password"
+              placeholder="••••••••"
             />
-            <TextField
-              label="تکرار رمز جدید"
+          </label>
+          <label className={styles.field}>
+            <span>تکرار رمز جدید</span>
+            <input
               type="password"
               value={password2}
               onChange={(e) => setPassword2(e.target.value)}
               required
-              fullWidth
+              minLength={6}
               autoComplete="new-password"
             />
-            <Button
-              type="submit"
-              buttonVariant="filled"
-              loading={busy}
-              disabled={busy || !currentPassword || password.length < 6}
-              sx={{ alignSelf: 'flex-start' }}
-            >
-              ذخیره رمز
-            </Button>
-          </Stack>
-        </Box>
-      </Card>
+          </label>
+          <button
+            type="submit"
+            className={styles.btnPrimary}
+            disabled={busy || !currentPassword || password.length < 6}
+          >
+            ذخیره رمز
+          </button>
+        </form>
 
-      {error ? (
-        <Typography variant="bodySmall" color="error" display="block">
-          {error}
-        </Typography>
-      ) : null}
-
-      <Box
-        sx={{
-          position: 'fixed',
-          bottom: 24,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 1400,
-        }}
-      >
-        <Snackbar
-          open={!!toast}
-          message={toast}
-          severity="success"
-          onClose={() => setToast('')}
-        />
-      </Box>
-    </Stack>
+        {error ? <div className={styles.error}>{error}</div> : null}
+      </div>
+      <DidbanToast message={toast} />
+    </div>
   )
 }

@@ -1,13 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
-import {
-  Box,
-  Button,
-  Card,
-  Stack,
-  Typography,
-} from '@smartx/design-system'
 import { formatJalaliLong, gregorianToJalali, toFaDigits } from '../lib/jalali'
+import styles from '../pages/ReportPage.module.css'
+import { Ico } from './make/icons'
 
 type Props = {
   customerMessage: string
@@ -40,51 +35,7 @@ async function copyText(text: string, onFlash: Props['onFlash'], ok: string) {
   }
 }
 
-function MessageArea({
-  value,
-  onChange,
-  rows = 10,
-  id,
-  placeholder,
-}: {
-  value: string
-  onChange: (v: string) => void
-  rows?: number
-  id?: string
-  placeholder?: string
-}) {
-  return (
-    <Box
-      component="textarea"
-      id={id}
-      rows={rows}
-      value={value}
-      placeholder={placeholder}
-      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-        onChange(e.target.value)
-      }
-      sx={{
-        width: '100%',
-        boxSizing: 'border-box',
-        borderRadius: 2,
-        border: '1px solid',
-        borderColor: 'divider',
-        p: 1.5,
-        font: 'inherit',
-        resize: 'vertical',
-        bgcolor: 'background.paper',
-        mt: 1.5,
-        '&:focus': {
-          outline: '2px solid',
-          outlineColor: 'primary.main',
-          outlineOffset: 1,
-        },
-      }}
-    />
-  )
-}
-
-/** مرحله آخر: PDF + پیام مشتری + فرم دستیار */
+/** مرحله ارسال — پیام مشتری و فرم دستیار جدا و خوانا */
 export function SendStep({
   customerMessage,
   assistantForm,
@@ -112,142 +63,137 @@ export function SendStep({
   const assist = editedAssist ?? assistantForm
 
   return (
-    <Stack spacing={2.5}>
-      <Box>
-        <Typography variant="titleLarge">آماده ارسال و ثبت</Typography>
-        <Typography variant="bodyMedium" color="text.secondary">
-          PDF را دانلود کنید، متن پیام مشتری را بفرستید، و در صورت نیاز فرم دستیار
-          را کپی کنید.
-        </Typography>
-      </Box>
+    <div>
+      <div className={styles.panelHead}>
+        <div className={styles.panelIcon}>{Ico.send}</div>
+        <div>
+          <h2>ارسال گزارش</h2>
+          <div className={styles.panelSub}>
+            اول پیام مشتری را بفرستید؛ فرم دستیار برای ثبت داخلی است
+          </div>
+        </div>
+      </div>
 
-      <Button
-        buttonVariant="filled"
-        buttonSize="standard"
-        disabled={busy || pdfDisabled}
-        loading={busy}
-        onClick={onDownload}
-        sx={{ alignSelf: 'flex-start' }}
-      >
-        دانلود PDF گزارش
-      </Button>
+      {sentAt ? (
+        <div className={styles.sentBanner}>
+          ارسال ثبت شد · {sentText(sentAt)}
+        </div>
+      ) : null}
 
-      <Box>
-        <Typography
-          variant="labelMedium"
-          component="label"
-          htmlFor="op-note"
-          sx={{ display: 'block', mb: 0.75 }}
-        >
-          یادداشت کارشناس (اختیاری؛ در هر دو قالب می‌آید)
-        </Typography>
-        <MessageArea
-          id="op-note"
-          rows={2}
-          placeholder="مثلاً: هفته بعد درباره قطع اتصال پیگیری می‌کنیم"
-          value={note}
-          onChange={onNote}
-        />
-      </Box>
-
-      <Card elevation={1} sx={{ p: 1 }}>
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          flexWrap="wrap"
-          gap={1}
-        >
-          <Typography variant="titleMedium">
-            ۱) فرمت ارسال پیام به مشتری
-          </Typography>
-          <Stack direction="row" spacing={0.5}>
-            {editedMsg !== null ? (
-              <Button
-                buttonVariant="text"
-                buttonSize="small"
-                onClick={() => setEditedMsg(null)}
+      <div className={styles.sendStack}>
+        <div className={styles.sendBoxPrimary}>
+          <div className={styles.sendLabel}>
+            <div>
+              <h3 className={styles.sendBoxTitle}>۱) پیام مشتری</h3>
+              <p className={styles.sendBoxHint}>
+                همین متن را برای مشتری واتساپ/پیامک می‌فرستید. قبل از ارسال ویرایش
+                کنید.
+              </p>
+            </div>
+            <span>
+              {editedMsg !== null ? (
+                <button
+                  type="button"
+                  className={styles.linkBtn}
+                  onClick={() => setEditedMsg(null)}
+                >
+                  بازگرداندن
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className={styles.btnGhost}
+                onClick={() =>
+                  void copyText(msg, onFlash, 'متن پیام مشتری کپی شد')
+                }
               >
-                بازگرداندن خودکار
-              </Button>
-            ) : null}
-            <Button
-              buttonVariant="outlined"
-              buttonSize="small"
-              onClick={() => void copyText(msg, onFlash, 'متن پیام مشتری کپی شد')}
-            >
-              کپی پیام مشتری
-            </Button>
-          </Stack>
-        </Stack>
-        <MessageArea value={msg} onChange={setEditedMsg} />
-      </Card>
+                کپی پیام مشتری
+              </button>
+            </span>
+          </div>
+          <textarea
+            rows={14}
+            value={msg}
+            onChange={(e) => setEditedMsg(e.target.value)}
+            aria-label="پیام مشتری"
+          />
+        </div>
 
-      <Card elevation={1} sx={{ p: 1 }}>
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          flexWrap="wrap"
-          gap={1}
-        >
-          <Typography variant="titleMedium">
-            ۲) فرمت اطلاعات برای ثبت فرم دستیار
-          </Typography>
-          <Stack direction="row" spacing={0.5}>
-            {editedAssist !== null ? (
-              <Button
-                buttonVariant="text"
-                buttonSize="small"
-                onClick={() => setEditedAssist(null)}
+        <div className={styles.sendBox}>
+          <div className={styles.sendLabel}>
+            <div>
+              <h3 className={styles.sendBoxTitle}>۲) فرم دستیار</h3>
+              <p className={styles.sendBoxHint}>
+                خلاصهٔ ساختاری برای ثبت در فرم داخلی تیم؛ برای مشتری ارسال نشود.
+              </p>
+            </div>
+            <span>
+              {editedAssist !== null ? (
+                <button
+                  type="button"
+                  className={styles.linkBtn}
+                  onClick={() => setEditedAssist(null)}
+                >
+                  بازگرداندن
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className={styles.btnGhost}
+                onClick={() =>
+                  void copyText(assist, onFlash, 'متن فرم دستیار کپی شد')
+                }
               >
-                بازگرداندن خودکار
-              </Button>
-            ) : null}
-            <Button
-              buttonVariant="outlined"
-              buttonSize="small"
-              onClick={() =>
-                void copyText(assist, onFlash, 'متن فرم دستیار کپی شد')
-              }
-            >
-              کپی فرم دستیار
-            </Button>
-          </Stack>
-        </Stack>
-        <MessageArea value={assist} onChange={setEditedAssist} />
-      </Card>
+                کپی فرم دستیار
+              </button>
+            </span>
+          </div>
+          <textarea
+            rows={12}
+            value={assist}
+            onChange={(e) => setEditedAssist(e.target.value)}
+            aria-label="فرم دستیار"
+          />
+        </div>
 
-      <Card elevation={1} sx={{ p: 2 }}>
-        {sentAt ? (
-          <Typography variant="bodyMedium" sx={{ mb: 1.5 }}>
-            ارسال‌شده برای مشتری · {sentText(sentAt)}
-          </Typography>
-        ) : (
-          <Typography
-            variant="bodyMedium"
-            color="text.secondary"
-            sx={{ mb: 1.5 }}
-          >
-            هنوز به‌عنوان ارسال‌شده ثبت نشده است.
-          </Typography>
-        )}
-        <Button
-          buttonVariant={sentAt ? 'text' : 'filled'}
+        <div className={`${styles.sendBox} ${styles.sendNoteBox}`}>
+          <h3 className={styles.sendBoxTitle}>یادداشت داخلی (اختیاری)</h3>
+          <p className={styles.sendBoxHint}>
+            فقط برای تیم دیده می‌شود و در صورت نیاز داخل قالب‌ها می‌آید.
+          </p>
+          <textarea
+            rows={4}
+            value={note}
+            onChange={(e) => onNote(e.target.value)}
+            placeholder="مثلاً: هفته بعد درباره قطع اتصال پیگیری می‌کنیم"
+            aria-label="یادداشت داخلی"
+          />
+        </div>
+      </div>
+
+      <div className={styles.sendActions}>
+        <button
+          type="button"
+          className={styles.btnGhost}
+          disabled={busy || pdfDisabled}
+          onClick={onDownload}
+        >
+          {busy ? 'در حال ساخت…' : 'دانلود PDF گزارش'}
+        </button>
+        <button
+          type="button"
+          className={sentAt ? styles.btnGhost : styles.btnPrimary}
           onClick={onToggleSent}
         >
           {sentAt ? 'لغو ثبت ارسال' : 'ثبت به‌عنوان ارسال‌شده'}
-        </Button>
-      </Card>
-
-      <Stack direction="row" spacing={1} flexWrap="wrap">
-        <Button component={RouterLink} to="/" buttonVariant="text">
+        </button>
+        <RouterLink className={styles.linkBtn} to="/">
           شروع بررسی جدید
-        </Button>
-        <Button component={RouterLink} to="/reports" buttonVariant="text">
+        </RouterLink>
+        <RouterLink className={styles.linkBtn} to="/reports">
           صندوق گزارش‌ها
-        </Button>
-      </Stack>
-    </Stack>
+        </RouterLink>
+      </div>
+    </div>
   )
 }
