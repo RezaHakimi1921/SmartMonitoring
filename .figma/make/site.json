@@ -1,0 +1,10 @@
+{
+  "description": "Helps users quickly review collections and choose the right template through a simple, intuitive interface.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
