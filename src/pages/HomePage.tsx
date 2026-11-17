@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { JalaliRangePicker } from '../components/JalaliRangePicker'
 import { Ico } from '../components/make/icons'
-import type { BrandBranch } from '../data/types'
+import { FEATURE_CATEGORIES } from '../data/catalog'
+import { DIAG_ITEMS } from '../data/diagCatalog'
+import type {
+  BrandBranch,
+  FeatureId,
+  FeatureMode,
+  ReviewType,
+} from '../data/types'
 import { useAuth } from '../lib/authContext'
 import { loadBrands, searchBrands } from '../lib/brands'
 import { loadHistory } from '../lib/history'
@@ -20,7 +28,7 @@ import {
 } from '../lib/storage'
 import styles from './HomePage.module.css'
 
-type Step = 1 | 2 | 3
+type Step = 1 | 2 | 3 | 4
 
 type WizardBrand = {
   id: string
@@ -32,52 +40,11 @@ type WizardBrand = {
   raw: BrandBranch
 }
 
-type WizardTemplate = {
-  id: string
-  catalogId: string
-  title: string
-  description: string
-  sections: number
-  minutes: number
-  icon: 'spark' | 'check' | 'clock'
-  recommended?: boolean
-}
-
 const STEPS = [
   { n: 1 as const, title: 'انتخاب مجموعه' },
   { n: 2 as const, title: 'انتخاب قالب' },
   { n: 3 as const, title: 'تنظیم بازه' },
-]
-
-const TEMPLATES: WizardTemplate[] = [
-  {
-    id: 'quick',
-    catalogId: 'quick',
-    title: 'بررسی سریع',
-    description: 'نمای کلی وضعیت مجموعه و شاخص‌های ضروری',
-    sections: 5,
-    minutes: 3,
-    icon: 'spark',
-    recommended: true,
-  },
-  {
-    id: 'delivery',
-    catalogId: 'first',
-    title: 'پس از تحویل',
-    description: 'کیفیت تحویل، آموزش و تجربه شروع مشتری',
-    sections: 8,
-    minutes: 6,
-    icon: 'check',
-  },
-  {
-    id: 'renewal',
-    catalogId: 'after-renewal',
-    title: 'تماس بعد از تمدید',
-    description: 'رضایت از تمدید، پشتیبانی و عملکرد سرویس',
-    sections: 6,
-    minutes: 4,
-    icon: 'clock',
-  },
+  { n: 4 as const, title: 'شاخص‌های بررسی' },
 ]
 
 const PERIODS = [
@@ -136,9 +103,9 @@ function periodQuery(periodId: string, fromDate: string, toDate: string) {
   return { period: 'custom', from: fromDate, to: toDate }
 }
 
-function tplIcon(kind: WizardTemplate['icon']): ReactNode {
-  if (kind === 'clock') return Ico.clock
-  if (kind === 'check') return Ico.check
+function templateIcon(type: ReviewType, index: number): ReactNode {
+  if (type.id.includes('renewal')) return Ico.clock
+  if (type.id.includes('first') || index === 1) return Ico.check
   return Ico.spark
 }
 
@@ -157,6 +124,13 @@ export function HomePage() {
   )
   const [toDate, setToDate] = useState(serializeJalali(todayJalali()))
   const [loadingBrands, setLoadingBrands] = useState(true)
+  const [selected, setSelected] = useState<
+    { id: FeatureId; mode: FeatureMode | null; checked: boolean }[]
+  >([])
+  const [diagSelected, setDiagSelected] = useState<number[]>([])
+
+  const reviewTypes = useMemo(() => loadReviewTypes(), [configReady])
+  const features = useMemo(() => loadFeatures(), [configReady])
 
   useEffect(() => {
     let cancelled = false
@@ -220,57 +194,84 @@ export function HomePage() {
     }
   }, [query])
 
+  useEffect(() => {
+    const current =
+      reviewTypes.find((item) => item.id === templateId) ?? reviewTypes[0]
+    if (!current) return
+    if (current.id !== templateId) {
+      setTemplateId(current.id)
+      return
+    }
+    setSelected(selectionForType(current, features))
+    setDiagSelected(diagDefaultsForType(current))
+  }, [configReady, templateId])
+
   const visibleBrands = query.trim() ? searchHits : allBrands.slice(0, 8)
   const brand =
     visibleBrands.find((b) => b.id === brandId) ||
     allBrands.find((b) => b.id === brandId) ||
     allBrands[0]
-  const template = TEMPLATES.find((t) => t.id === templateId) ?? TEMPLATES[0]!
+  const template =
+    reviewTypes.find((item) => item.id === templateId) ?? reviewTypes[0]
   const period = PERIODS.find((p) => p.id === periodId) ?? PERIODS[1]!
+  const enabledCount = selected.filter((item) => item.checked).length
 
   const canNext =
     (step === 1 && !!brand) ||
-    (step === 2 && !!templateId) ||
+    (step === 2 && !!template) ||
     (step === 3 &&
-      (periodId !== 'custom' || (!!fromDate && !!toDate && fromDate <= toDate)))
+      (periodId !== 'custom' ||
+        (!!fromDate && !!toDate && fromDate <= toDate))) ||
+    (step === 4 && enabledCount > 0)
 
   const primaryLabel =
     step === 1
       ? 'انتخاب قالب بررسی'
       : step === 2
         ? 'تنظیم بازه گزارش'
-        : 'شروع بررسی'
+        : step === 3
+          ? 'بررسی شاخص‌ها'
+          : 'شروع بررسی'
 
   const last = useMemo(() => loadHistory()[0], [configReady])
 
   const startReview = () => {
     if (!brand || !canNext) return
-    const types = loadReviewTypes()
-    const type =
-      types.find((t) => t.id === template.catalogId) ||
-      types.find((t) => t.id === 'quick')
-    if (!type) return
-    const catalog = loadFeatures()
-    const selected = selectionForType(type, catalog)
+    if (!template) return
     const ids = selected.filter((f) => f.checked).map((f) => f.id)
-    const diag = diagDefaultsForType(type)
     const pq = periodQuery(periodId, fromDate, toDate)
     const q = new URLSearchParams({
       features: ids.join(','),
       brandName: brand.raw.brandName,
       branchName: brand.raw.branchName,
       period: pq.period,
-      diag: diag.join(','),
+      diag: diagSelected.join(','),
     })
     if (pq.from) q.set('from', pq.from)
     if (pq.to) q.set('to', pq.to)
-    navigate(`/report/${type.id}/${brand.raw.branchId}?${q.toString()}`)
+    navigate(`/report/${template.id}/${brand.raw.branchId}?${q.toString()}`)
   }
 
   const goNext = () => {
     if (!canNext) return
-    if (step < 3) setStep((s) => (s + 1) as Step)
+    if (step < 4) setStep((s) => (s + 1) as Step)
     else startReview()
+  }
+
+  const toggleFeature = (id: FeatureId) => {
+    setSelected((current) =>
+      current.map((item) =>
+        item.id === id && item.mode !== 'required'
+          ? { ...item, checked: !item.checked }
+          : item,
+      ),
+    )
+  }
+
+  const resetTemplateDefaults = () => {
+    if (!template) return
+    setSelected(selectionForType(template, features))
+    setDiagSelected(diagDefaultsForType(template))
   }
 
   return (
@@ -414,8 +415,13 @@ export function HomePage() {
             </div>
           </div>
           <div className={styles.templateGrid}>
-            {TEMPLATES.map((t) => {
+            {reviewTypes.map((t, index) => {
               const on = t.id === templateId
+              const templateSelection = selectionForType(t, features)
+              const sectionCount = templateSelection.filter(
+                (item) => item.checked,
+              ).length
+              const diagCount = diagDefaultsForType(t).length
               return (
                 <button
                   key={t.id}
@@ -425,7 +431,7 @@ export function HomePage() {
                   }
                   onClick={() => setTemplateId(t.id)}
                 >
-                  {t.recommended ? (
+                  {index === 0 ? (
                     <span className={styles.templateBadge}>
                       پیشنهاد دیدبان
                     </span>
@@ -435,14 +441,14 @@ export function HomePage() {
                       {on ? Ico.check : null}
                     </span>
                     <span className={styles.templateIco}>
-                      {tplIcon(t.icon)}
+                      {templateIcon(t, index)}
                     </span>
                   </div>
                   <div className={styles.templateTitle}>{t.title}</div>
                   <div className={styles.templateDesc}>{t.description}</div>
                   <div className={styles.templateMeta}>
-                    {toFaDigits(t.sections)} بخش - حدود{' '}
-                    {toFaDigits(t.minutes)} دقیقه
+                    {toFaDigits(sectionCount)} شاخص ·{' '}
+                    {toFaDigits(diagCount)} نکته پیگیری
                   </div>
                 </button>
               )
@@ -481,27 +487,15 @@ export function HomePage() {
             })}
           </div>
           {periodId === 'custom' ? (
-            <div className={styles.customRow}>
-              <label className={styles.customField}>
-                <div className={styles.pickSub}>از تاریخ</div>
-                <input
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  dir="ltr"
-                  className={styles.nakedInput}
-                  placeholder="1405/07/16"
-                />
-              </label>
-              <label className={styles.customField}>
-                <div className={styles.pickSub}>تا تاریخ</div>
-                <input
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  dir="ltr"
-                  className={styles.nakedInput}
-                  placeholder="1405/07/23"
-                />
-              </label>
+            <div className={styles.calendarWrap}>
+              <JalaliRangePicker
+                from={fromDate}
+                to={toDate}
+                onChange={(from, to) => {
+                  setFromDate(from)
+                  setToDate(to)
+                }}
+              />
             </div>
           ) : null}
           <div className={styles.summary}>
@@ -516,7 +510,9 @@ export function HomePage() {
               <div className={styles.summaryIco}>{Ico.spark}</div>
               <div style={{ minWidth: 0 }}>
                 <div className={styles.summaryLbl}>قالب بررسی</div>
-                <div className={styles.summaryVal}>{template.title}</div>
+                <div className={styles.summaryVal}>
+                  {template?.title || '—'}
+                </div>
               </div>
             </div>
             <div className={styles.summaryItem}>
@@ -534,6 +530,153 @@ export function HomePage() {
         </div>
       ) : null}
 
+      {step === 4 ? (
+        <div className={styles.panel}>
+          <div className={styles.contentHead}>
+            <div className={styles.panelHead}>
+              <div className={styles.panelIconRound}>{Ico.check}</div>
+              <div>
+                <h2>شاخص‌های این بررسی</h2>
+                <div className={styles.panelSub}>
+                  این انتخاب‌ها از تنظیمات قالب «{template?.title}» آمده‌اند.
+                  موارد اختیاری را می‌توانید برای همین گزارش تغییر دهید.
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className={styles.resetButton}
+              onClick={resetTemplateDefaults}
+            >
+              بازگشت به تنظیمات قالب
+            </button>
+          </div>
+
+          <div className={styles.contentSummary}>
+            <div>
+              <strong>{toFaDigits(enabledCount)}</strong>
+              <span>شاخص گزارش</span>
+            </div>
+            <div>
+              <strong>{toFaDigits(diagSelected.length)}</strong>
+              <span>نکته پیگیری</span>
+            </div>
+            <p>
+              شاخص‌های الزامی قابل حذف نیستند. تغییرات این مرحله فقط روی همین
+              گزارش اعمال می‌شود.
+            </p>
+          </div>
+
+          <div className={styles.categoryGrid}>
+            {FEATURE_CATEGORIES.map((category) => {
+              const categoryFeatures = features.filter(
+                (feature) => feature.category === category.id,
+              )
+              if (!categoryFeatures.length) return null
+              const categoryOn = categoryFeatures.filter((feature) =>
+                selected.some(
+                  (item) => item.id === feature.id && item.checked,
+                ),
+              ).length
+              return (
+                <section className={styles.featureCategory} key={category.id}>
+                  <div className={styles.categoryHead}>
+                    <div>
+                      <h3>{category.title}</h3>
+                      <span>{category.description}</span>
+                    </div>
+                    <em>
+                      {toFaDigits(categoryOn)} از{' '}
+                      {toFaDigits(categoryFeatures.length)}
+                    </em>
+                  </div>
+                  <div className={styles.featureList}>
+                    {categoryFeatures.map((feature) => {
+                      const state = selected.find(
+                        (item) => item.id === feature.id,
+                      )
+                      const required = state?.mode === 'required'
+                      const checked = !!state?.checked
+                      return (
+                        <button
+                          key={feature.id}
+                          type="button"
+                          className={
+                            checked
+                              ? styles.featureItemOn
+                              : styles.featureItem
+                          }
+                          disabled={required}
+                          aria-pressed={checked}
+                          onClick={() => toggleFeature(feature.id)}
+                        >
+                          <span className={styles.featureCheck}>
+                            {checked ? Ico.check : null}
+                          </span>
+                          <span>
+                            <strong>{feature.title}</strong>
+                            <small>{feature.description}</small>
+                          </span>
+                          {required ? (
+                            <em className={styles.requiredBadge}>الزامی</em>
+                          ) : null}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </section>
+              )
+            })}
+          </div>
+
+          <details className={styles.diagDetails}>
+            <summary>
+              <span>
+                نکات قابل پیگیری قالب
+                <small>
+                  {toFaDigits(diagSelected.length)} مورد انتخاب شده
+                </small>
+              </span>
+              <span className={styles.detailsAction}>مشاهده و ویرایش</span>
+            </summary>
+            <div className={styles.diagGrid}>
+              {DIAG_ITEMS.map((item) => {
+                const checked = diagSelected.includes(item.id)
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={checked ? styles.diagItemOn : styles.diagItem}
+                    aria-pressed={checked}
+                    onClick={() =>
+                      setDiagSelected((current) =>
+                        checked
+                          ? current.filter((id) => id !== item.id)
+                          : [...current, item.id],
+                      )
+                    }
+                  >
+                    <span className={styles.featureCheck}>
+                      {checked ? Ico.check : null}
+                    </span>
+                    <span>
+                      <strong>{item.title}</strong>
+                      <small>{item.hint}</small>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </details>
+
+          {enabledCount === 0 ? (
+            <p className={styles.validation}>
+              برای شروع بررسی حداقل یک شاخص را انتخاب کنید.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       <footer className={styles.footer}>
         <div className={styles.selBrand}>
           {brand ? (
@@ -546,7 +689,10 @@ export function HomePage() {
               </div>
               <div className={styles.selMeta}>
                 <div className={styles.lbl}>مجموعه انتخاب‌شده</div>
-                <div className={styles.val}>{brand.name}</div>
+                <div className={styles.val}>
+                  {brand.name}
+                  {step === 4 && template ? ` · ${template.title}` : ''}
+                </div>
               </div>
             </>
           ) : (
