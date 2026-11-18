@@ -303,16 +303,16 @@ async function loadLiveMetrics(
       ),
     ])
 
-  // جمع ازدست‌رفته در کل ماه‌های بازه (جدا از TOP 1 آخرین ماه)
+  // جریان ماهانهٔ ازدست‌رفته در بازه (جدا از TOP 1 آخرین ماه).
+  // CustomerLost در BI موجودی تجمعی/سراسری است — SUM آن نرخ را هزاران درصد می‌کند.
+  // عدد درست بازه = SUM(LostThisMonth).
   const lostRange = await query<{
     LostSum: number | null
     NewSum: number | null
-    ThinSum: number | null
   }>(
     `SELECT
-      SUM(ISNULL(CustomerLost,0)) AS LostSum,
-      SUM(ISNULL(newCustomers,0)) AS NewSum,
-      SUM(ISNULL(CustomerThinMonth,0)) AS ThinSum
+      SUM(ISNULL(LostThisMonth,0)) AS LostSum,
+      SUM(ISNULL(newCustomers,0)) AS NewSum
      FROM SmartPowerBI.dbo.BI_BranchLostCustomers WITH (NOLOCK)
      WHERE Branchid = @sw
        AND TRY_CAST(YearMonth AS int) BETWEEN @fromYm AND @toYm`,
@@ -336,12 +336,16 @@ async function loadLiveMetrics(
 
   const lostLatest = lostBi[0]
   const customersYear = num(lostLatest?.CustomerInLastYear)
-  const lostCustomers = num(lostRange[0]?.LostSum) || num(lostLatest?.CustomerLost)
+  const lostFromRange = lostRange[0]?.LostSum
+  const lostCustomers =
+    lostFromRange != null
+      ? num(lostFromRange)
+      : num(lostLatest?.LostThisMonth)
   const lostThisMonth = num(lostLatest?.LostThisMonth)
-  const activeMonth =
-    num(lostLatest?.CustomerThinMonth) || num(lostRange[0]?.ThinSum)
+  const activeMonth = num(lostLatest?.CustomerThinMonth)
+  const newFromRange = lostRange[0]?.NewSum
   const newFromLost =
-    num(lostRange[0]?.NewSum) || num(lostLatest?.newCustomers)
+    newFromRange != null ? num(newFromRange) : num(lostLatest?.newCustomers)
 
   const ops = opsDw[0]
   const credit = creditBi[0]

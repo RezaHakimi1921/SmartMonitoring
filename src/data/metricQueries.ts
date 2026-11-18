@@ -133,9 +133,10 @@ WHERE BranchID = @sw
     title: 'نرخ ازدست‌رفته',
     shouldUsePowerBI: true,
     source: 'SmartPowerBI.dbo.BI_BranchLostCustomers',
-    note: 'جمع CustomerLost در بازه / CustomerInLastYear آخرین ماه.',
+    note:
+      'جمع LostThisMonth در بازه / CustomerInLastYear آخرین ماه. CustomerLost موجودی تجمعی است و نباید SUM شود.',
     sql: `SELECT
-  SUM(ISNULL(CustomerLost,0)) AS LostSum,
+  SUM(ISNULL(LostThisMonth,0)) AS LostSum,
   (SELECT TOP 1 CustomerInLastYear
    FROM SmartPowerBI.dbo.BI_BranchLostCustomers WITH (NOLOCK)
    WHERE Branchid = @sw

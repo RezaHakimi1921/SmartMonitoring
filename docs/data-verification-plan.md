@@ -27,7 +27,7 @@
 | درصد اشتراک‌گیری | `SmartPowerBI.dbo.Fact_Subscription` | `SUM(memberCount) / SUM(MinFactureCount) * 100` |
 | تعداد سفارش / مبلغ | `Fact_SalesSummary` | `SUM(TotalOrders)`, `SUM(InvoiceSubTotal)` |
 | رضایت / پیامک نظرسنجی | `Fact_SatisfactionSummary` | `satisfiedReviews / TotalReviews`, `SmsCount` |
-| ازدست‌رفته | `BI_BranchLostCustomers` | ماه‌های `YearMonth` در بازه |
+| ازدست‌رفته | `BI_BranchLostCustomers` | `SUM(LostThisMonth)` در ماه‌های بازه / `CustomerInLastYear` آخرین ماه (`CustomerLost` تجمعی است — SUM نکن) |
 | اعتبار تولید/مصرف | `BI_BranchCredit` | `GeneratedCreditSum` / `SumUsedCredit` |
 | شارژ منفی / قطع | `SmartProjectDW.dbo.Fact_Branch` | روزهای NegCharge / Disconnect |
 
