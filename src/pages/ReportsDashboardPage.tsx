@@ -14,6 +14,8 @@ import styles from './ReportsInbox.module.css'
 
 type TabId = 'all' | 'followup' | 'sent'
 
+const PAGE_SIZE = 20
+
 function faWhen(iso: string) {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
@@ -87,6 +89,7 @@ export function ReportsDashboardPage() {
   const [stageKey, setStageKey] = useState('all')
   const [mineOnly, setMineOnly] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
   const types = useMemo(() => loadReviewTypes(), [])
 
   const effectiveUserId =
@@ -143,18 +146,36 @@ export function ReportsDashboardPage() {
     return counts.rows
   }, [counts.rows, tab])
 
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const safePage = Math.min(page, pageCount)
+
+  const pageRows = useMemo(() => {
+    const start = (safePage - 1) * PAGE_SIZE
+    return filtered.slice(start, start + PAGE_SIZE)
+  }, [filtered, safePage])
+
   useEffect(() => {
-    if (!filtered.length) {
+    setPage(1)
+  }, [tab, query, effectiveUserId, typeId, stageKey, mineOnly])
+
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount)
+  }, [page, pageCount])
+
+  useEffect(() => {
+    if (!pageRows.length) {
       setSelectedId(null)
       return
     }
-    if (!selectedId || !filtered.some((r) => r.id === selectedId)) {
-      setSelectedId(filtered[0]!.id)
+    if (!selectedId || !pageRows.some((r) => r.id === selectedId)) {
+      setSelectedId(pageRows[0]!.id)
     }
-  }, [filtered, selectedId])
+  }, [pageRows, selectedId])
 
-  const current = filtered.find((r) => r.id === selectedId) ?? null
+  const current = pageRows.find((r) => r.id === selectedId) ?? null
   const pct = current ? progressPct(current) : 0
+  const rangeFrom = filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1
+  const rangeTo = Math.min(safePage * PAGE_SIZE, filtered.length)
 
   return (
     <div className={styles.page}>
@@ -185,21 +206,27 @@ export function ReportsDashboardPage() {
           <button
             type="button"
             className={`${styles.tab}${tab === 'all' ? ` ${styles.tabOn}` : ''}`}
-            onClick={() => setTab('all')}
+            onClick={() => {
+              setTab('all')
+            }}
           >
             همه <em>{toFaDigits(counts.all)}</em>
           </button>
           <button
             type="button"
             className={`${styles.tab}${tab === 'followup' ? ` ${styles.tabOn}` : ''}`}
-            onClick={() => setTab('followup')}
+            onClick={() => {
+              setTab('followup')
+            }}
           >
             نیازمند پیگیری <em>{toFaDigits(counts.followup)}</em>
           </button>
           <button
             type="button"
             className={`${styles.tab}${tab === 'sent' ? ` ${styles.tabOn}` : ''}`}
-            onClick={() => setTab('sent')}
+            onClick={() => {
+              setTab('sent')
+            }}
           >
             ارسال شده <em>{toFaDigits(counts.sent)}</em>
           </button>
@@ -288,7 +315,7 @@ export function ReportsDashboardPage() {
           ) : filtered.length === 0 ? (
             <div className={styles.empty}>گزارشی پیدا نشد.</div>
           ) : (
-            filtered.map((r) => {
+            pageRows.map((r) => {
               const selected = r.id === selectedId
               const p = progressPct(r)
               return (
@@ -313,13 +340,80 @@ export function ReportsDashboardPage() {
                     </em>
                   </span>
                   <span className={styles.dateCell}>
-                    {faWhen(r.updatedAt)}
-                    <DidbanIcon name="chevron" size={15} />
+                    <span className={styles.dateText}>{faWhen(r.updatedAt)}</span>
+                    <span className={styles.rowChevron} aria-hidden="true">
+                      <DidbanIcon name="chevronLeft" size={16} />
+                    </span>
                   </span>
                 </button>
               )
             })
           )}
+
+          {!loading && filtered.length > 0 ? (
+            <div className={styles.pager}>
+              <span className={styles.pagerMeta}>
+                نمایش {toFaDigits(rangeFrom)}–{toFaDigits(rangeTo)} از{' '}
+                {toFaDigits(filtered.length)}
+              </span>
+              <div className={styles.pagerControls}>
+                <button
+                  type="button"
+                  className={styles.pagerBtn}
+                  disabled={safePage <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  aria-label="صفحه قبل"
+                >
+                  <DidbanIcon name="chevron" size={15} />
+                  قبلی
+                </button>
+                <div className={styles.pagerPages}>
+                  {Array.from({ length: pageCount }, (_, i) => i + 1)
+                    .filter((n) => {
+                      if (pageCount <= 7) return true
+                      if (n === 1 || n === pageCount) return true
+                      return Math.abs(n - safePage) <= 1
+                    })
+                    .reduce<(number | '…')[]>((acc, n, idx, arr) => {
+                      if (idx > 0) {
+                        const prev = arr[idx - 1]!
+                        if (n - prev > 1) acc.push('…')
+                      }
+                      acc.push(n)
+                      return acc
+                    }, [])
+                    .map((n, idx) =>
+                      n === '…' ? (
+                        <span key={`gap-${idx}`} className={styles.pagerGap}>
+                          …
+                        </span>
+                      ) : (
+                        <button
+                          key={n}
+                          type="button"
+                          className={`${styles.pagerPage}${
+                            n === safePage ? ` ${styles.pagerPageOn}` : ''
+                          }`}
+                          onClick={() => setPage(n)}
+                        >
+                          {toFaDigits(n)}
+                        </button>
+                      ),
+                    )}
+                </div>
+                <button
+                  type="button"
+                  className={styles.pagerBtn}
+                  disabled={safePage >= pageCount}
+                  onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+                  aria-label="صفحه بعد"
+                >
+                  بعدی
+                  <DidbanIcon name="chevronLeft" size={15} />
+                </button>
+              </div>
+            </div>
+          ) : null}
         </section>
 
         <aside className={styles.drawer}>

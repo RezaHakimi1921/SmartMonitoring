@@ -10,6 +10,7 @@ export type DidbanIconName =
   | 'users'
   | 'search'
   | 'chevron'
+  | 'chevronLeft'
   | 'plus'
   | 'close'
   | 'filter'
@@ -73,6 +74,8 @@ const paths: Record<DidbanIconName, ReactNode> = {
     </>
   ),
   chevron: <path d="m9 6 6 6-6 6" />,
+  /** فلش باز کردن ردیف در لیست RTL — شکل ‹ */
+  chevronLeft: <path d="m15 6-6 6 6 6" />,
   plus: <path d="M12 5v14M5 12h14" />,
   close: <path d="M6 6l12 12M18 6 6 18" />,
   filter: <path d="M4 5h16M7 12h10M10 19h4" />,
