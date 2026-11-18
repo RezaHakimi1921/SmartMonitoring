@@ -706,8 +706,19 @@ export function ReportPage() {
     })
   }
 
+  const toggleAllDiagDone = () => {
+    const allSelected =
+      checklistItems.length > 0 &&
+      checklistItems.every((d) => diagDone.has(d.id))
+    if (allSelected) setDiagDone(new Set())
+    else setDiagDone(new Set(checklistItems.map((d) => d.id)))
+  }
+
   const renderDiagBody = () => {
     const doneCount = checklistItems.filter((d) => diagDone.has(d.id)).length
+    const allDone =
+      checklistItems.length > 0 && doneCount === checklistItems.length
+    const someDone = doneCount > 0 && !allDone
     return (
       <>
         <div className={rp.panelHead}>
@@ -724,30 +735,43 @@ export function ReportPage() {
         {checklistItems.length === 0 ? (
           <div className={rp.hintOk}>هیچ نکتهٔ پیگیری‌ای انتخاب نشده است.</div>
         ) : (
-          <div className={rp.diagList}>
-            {checklistItems.map((d) => {
-              const live = diagLive?.find((x) => x.id === d.id)
-              const done = diagDone.has(d.id)
-              return (
-                <label
-                  key={d.id}
-                  className={done ? rp.diagRowDone : rp.diagRow}
-                >
-                  <input
-                    type="checkbox"
-                    checked={done}
-                    onChange={() => toggleDiagDone(d.id)}
-                  />
-                  <div>
-                    <div className={rp.diagTitle}>{d.title}</div>
-                    <div className={rp.diagNote}>
-                      {live?.value || d.hint}
+          <>
+            <label className={rp.diagSelectAll}>
+              <input
+                type="checkbox"
+                checked={allDone}
+                ref={(el) => {
+                  if (el) el.indeterminate = someDone
+                }}
+                onChange={toggleAllDiagDone}
+              />
+              <span>انتخاب همه</span>
+            </label>
+            <div className={rp.diagList}>
+              {checklistItems.map((d) => {
+                const live = diagLive?.find((x) => x.id === d.id)
+                const done = diagDone.has(d.id)
+                return (
+                  <label
+                    key={d.id}
+                    className={done ? rp.diagRowDone : rp.diagRow}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={done}
+                      onChange={() => toggleDiagDone(d.id)}
+                    />
+                    <div>
+                      <div className={rp.diagTitle}>{d.title}</div>
+                      <div className={rp.diagNote}>
+                        {live?.value || d.hint}
+                      </div>
                     </div>
-                  </div>
-                </label>
-              )
-            })}
-          </div>
+                  </label>
+                )
+              })}
+            </div>
+          </>
         )}
 
         {diagLoading ? (
@@ -1064,6 +1088,8 @@ export function ReportPage() {
         <div ref={exportRef}>
           <ExportSheet
             typeTitle={type.title}
+            brandName={brandName}
+            branchName={branchName}
             place={place}
             periodLabel={rangeText}
             reportDate={reportDate}

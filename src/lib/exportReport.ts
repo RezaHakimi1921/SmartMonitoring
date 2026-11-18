@@ -6,7 +6,10 @@ const CAPTURE_OPTS = {
   pixelRatio: 2,
   quality: 0.92,
   backgroundColor: '#ffffff',
-  style: { fontFamily: '"Vazirmatn", Tahoma, sans-serif', opacity: '1' },
+  style: {
+    fontFamily: '"IRANYekanXFaNum", "IRANYekanX", Tahoma, sans-serif',
+    opacity: '1',
+  },
 }
 
 async function waitForFonts() {
@@ -55,28 +58,20 @@ export async function exportReportAsPdf(
   const pageH = pdf.internal.pageSize.getHeight()
   const margin = 10
   const footerH = 10
-  const gap = 3
   const usableW = pageW - margin * 2
   const bottom = pageH - margin - footerH
 
-  // چیدن بلاک‌ها در صفحه‌ها
-  const pages: { block: Block; y: number; hMm: number; wMm: number }[][] = [[]]
-  let y = margin
+  // هر `.pdf-block` = یک صفحهٔ گزارش (صفحات اجرایی جدا؛ وسط بریده نمی‌شوند)
+  const pages: { block: Block; y: number; hMm: number; wMm: number }[][] = []
   for (const block of blocks) {
     let wMm = usableW
     let hMm = (block.h * usableW) / block.w
     const maxH = bottom - margin
     if (hMm > maxH) {
-      // بلاک خیلی بلند: کوچک می‌شود تا در یک صفحه بنشیند
       wMm = (usableW * maxH) / hMm
       hMm = maxH
     }
-    if (y + hMm > bottom && pages[pages.length - 1].length > 0) {
-      pages.push([])
-      y = margin
-    }
-    pages[pages.length - 1].push({ block, y, hMm, wMm })
-    y += hMm + gap
+    pages.push([{ block, y: margin, hMm, wMm }])
   }
 
   const total = pages.length

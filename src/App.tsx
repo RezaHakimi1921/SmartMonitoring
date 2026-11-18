@@ -22,6 +22,7 @@ import { FeedbackDetailPage } from './pages/FeedbackDetailPage'
 import { FeedbackNewPage } from './pages/FeedbackNewPage'
 import { FeedbackPage } from './pages/FeedbackPage'
 import { ProfilePage } from './pages/ProfilePage'
+import { PdfPreviewPage } from './pages/PdfPreviewPage'
 
 function RequireAuth() {
   const { user, loading } = useAuth()
@@ -68,6 +69,9 @@ export default function App() {
       <BrowserRouter basename={basename}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          {import.meta.env.DEV ? (
+            <Route path="/pdf-preview" element={<PdfPreviewPage />} />
+          ) : null}
           <Route element={<RequireAuth />}>
             <Route element={<AppShell />}>
               <Route index element={<HomePage />} />

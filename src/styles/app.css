@@ -595,17 +595,7 @@ a {
   width: 794px;
   pointer-events: none;
   z-index: -1;
-  font-family: "Vazirmatn", Tahoma, sans-serif;
-}
-
-.export-sheet {
-  width: 794px;
-  min-height: 1123px;
-  padding: 28px 32px 24px;
-  background: #ffffff;
-  color: #0f172a;
-  font-family: "Vazirmatn", Tahoma, sans-serif;
-  box-sizing: border-box;
+  font-family: "IRANYekanXFaNum", "IRANYekanX", Tahoma, sans-serif;
 }
 
 .export-head {
